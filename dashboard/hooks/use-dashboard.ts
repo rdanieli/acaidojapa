@@ -167,6 +167,46 @@ export function useInventoryEntries(status?: string) {
   });
 }
 
+// --- Inventory Entry Actions ---
+export function useConfirmEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch('/api/dashboard/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'confirm' }),
+      });
+      if (!res.ok) throw new Error('Failed to confirm entry');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-entries'] });
+      qc.invalidateQueries({ queryKey: ['products-catalog'] });
+      qc.invalidateQueries({ queryKey: ['stock-movements'] });
+      qc.invalidateQueries({ queryKey: ['stock-summary'] });
+    },
+  });
+}
+
+export function useRejectEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch('/api/dashboard/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'reject' }),
+      });
+      if (!res.ok) throw new Error('Failed to reject entry');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-entries'] });
+    },
+  });
+}
+
 // --- Merge Products ---
 export function useMergeProducts() {
   const qc = useQueryClient();

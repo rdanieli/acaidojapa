@@ -10,9 +10,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useConfirmEntry, useRejectEntry } from '@/hooks/use-dashboard';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight, MessageSquare, Camera, Mic } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare, Camera, Mic, Check, X, Loader2 } from 'lucide-react';
 
 interface InventoryItem {
   id: number;
@@ -77,6 +79,8 @@ function formatDate(dateStr: string) {
 
 export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const confirmEntry = useConfirmEntry();
+  const rejectEntry = useRejectEntry();
 
   if (loading) {
     return (
@@ -124,6 +128,9 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
               <TableHead className="w-28 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
                 Status
               </TableHead>
+              <TableHead className="w-24 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
+                Ações
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -135,6 +142,9 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
                 (sum, item) => sum + (item.totalPrice ? parseFloat(item.totalPrice) : 0),
                 0
               );
+              const isPending = entry.status === 'pending';
+              const isProcessing = (confirmEntry.isPending && confirmEntry.variables === entry.id) ||
+                (rejectEntry.isPending && rejectEntry.variables === entry.id);
 
               return (
                 <TableRow
@@ -174,6 +184,34 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
                     <Badge className={cn('text-[10px]', statusConfig.className)}>
                       {statusConfig.label}
                     </Badge>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {isPending && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                          onClick={() => confirmEntry.mutate(entry.id)}
+                          disabled={isProcessing}
+                        >
+                          {isProcessing && confirmEntry.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => rejectEntry.mutate(entry.id)}
+                          disabled={isProcessing}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               );
