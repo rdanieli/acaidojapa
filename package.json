@@ -1,0 +1,20 @@
+{
+  "name": "acaidojapa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test-pdv": "tsx src/test-pdv.ts",
+    "test-cardapio": "tsx src/test-cardapio.ts",
+    "test-ontem": "tsx src/test-ontem.ts",
+    "test-hoje": "tsx src/test-ontem.ts 0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
