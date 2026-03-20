@@ -74,6 +74,20 @@ export async function GET(request: NextRequest) {
       soldProductMap.set(sp.id, sp);
     }
 
+    // Build revenda product lookup: normalized aliases → { costPerUnit }
+    const revendaProducts = productRows.filter(p => p.category === 'revenda');
+    const revendaAliasMap = new Map<string, number>();
+    for (const p of revendaProducts) {
+      const normName = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+      revendaAliasMap.set(normName, Number(p.costPerUnit) || 0);
+      if (p.aliases) {
+        for (const alias of p.aliases.split(',')) {
+          const normAlias = alias.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+          if (normAlias) revendaAliasMap.set(normAlias, Number(p.costPerUnit) || 0);
+        }
+      }
+    }
+
     // Recipes grouped by soldProductId
     const recipeMap = new Map<number, typeof recipeRows>();
     for (const r of recipeRows) {
@@ -175,10 +189,49 @@ export async function GET(request: NextRequest) {
       const parsed = await parseOrderItem(item.name);
 
       if (!parsed.soldProductId) {
+        // Try revenda fallback: match item name against revenda product aliases
+        const normItemName = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+        let revendaCost: number | null = null;
+        if (revendaAliasMap.has(normItemName)) {
+          revendaCost = revendaAliasMap.get(normItemName)!;
+        } else {
+          // Partial match: check if any alias is contained in the item name or vice versa
+          for (const [alias, cost] of revendaAliasMap) {
+            if (normItemName.includes(alias) || alias.includes(normItemName)) {
+              revendaCost = cost;
+              break;
+            }
+          }
+        }
+
+        if (revendaCost !== null) {
+          const itemCmv = revendaCost * qty;
+          totalCmv += itemCmv;
+
+          const dailyEntry = dailyMap.get(date);
+          if (dailyEntry) dailyEntry.cmv += itemCmv;
+
+          const key = `revenda-${normItemName}`;
+          const existing = productStats.get(key);
+          if (existing) {
+            existing.qtySold += qty;
+            existing.revenue += itemRevenue;
+            existing.cmv += itemCmv;
+          } else {
+            productStats.set(key, {
+              soldProductId: 0,
+              name: item.name,
+              qtySold: qty,
+              revenue: itemRevenue,
+              cmv: itemCmv,
+            });
+          }
+          continue;
+        }
+
         unmappedItems++;
         unmappedNameCounts.set(item.name, (unmappedNameCounts.get(item.name) || 0) + 1);
-        const normalizedName = item.name.toLowerCase().trim();
-        const key = `unmapped-${normalizedName}`;
+        const key = `unmapped-${normItemName}`;
         const existing = productStats.get(key);
         if (existing) {
           existing.qtySold += qty;
@@ -196,9 +249,14 @@ export async function GET(request: NextRequest) {
       }
 
       let itemCmv = 0;
+      const sp = soldProductMap.get(parsed.soldProductId);
 
-      // Dynamic CMV for açaí cups (has sizeMl and sizeTier)
-      if (parsed.sizeMl && parsed.sizeTier) {
+      // Priority 1: costPrice defined on soldProduct (milkshakes, KG sorvete, etc.)
+      if (sp?.costPrice) {
+        itemCmv = Number(sp.costPrice) * qty;
+      }
+      // Priority 2: Dynamic CMV for açaí cups (has sizeMl and sizeTier)
+      else if (parsed.sizeMl && parsed.sizeTier) {
         const cupWeightG = CUP_WEIGHTS[parsed.sizeMl] || parsed.sizeMl;
 
         // Calculate complement costs and total complement weight
@@ -234,7 +292,6 @@ export async function GET(request: NextRequest) {
       if (dailyEntry) dailyEntry.cmv += itemCmv;
 
       // Track per-product stats
-      const sp = soldProductMap.get(parsed.soldProductId);
       const productKey = `sp-${parsed.soldProductId}`;
       const existing = productStats.get(productKey);
       if (existing) {

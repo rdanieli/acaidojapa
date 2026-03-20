@@ -69,6 +69,7 @@ export const soldProducts = pgTable('sold_products', {
   sizeMl: integer('size_ml'),
   category: text('category'), // 'acai' | 'suco' | 'sorvete' | 'outros'
   price: numeric('price', { precision: 10, scale: 2 }),
+  costPrice: numeric('cost_price', { precision: 10, scale: 2 }),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -77,6 +77,14 @@ function extractSizeMl(text: string): number | null {
   const literMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(?:l(?:itro)?)\b/i);
   if (literMatch) return Math.round(parseFloat(literMatch[1].replace(',', '.')) * 1000);
 
+  // Bare number matching a known cup size (e.g., "M MORANGO 300")
+  const KNOWN_CUP_SIZES = [200, 300, 400, 500, 700];
+  const bareMatch = text.match(/\b(\d{3})\b/);
+  if (bareMatch) {
+    const val = parseInt(bareMatch[1], 10);
+    if (KNOWN_CUP_SIZES.includes(val)) return val;
+  }
+
   return null;
 }
 
@@ -96,9 +104,13 @@ export function mlToSizeTier(ml: number): SizeTier {
  */
 function detectCategory(norm: string): string | null {
   if (norm.includes('milk') || norm.includes('milkshake') || norm.includes('milk shake')) return 'milkshake';
+  // PDV shorthand: "M MORANGO 300" = milkshake (M = milkshake, not "medium")
+  if (/^m\s+/.test(norm)) return 'milkshake';
   if (norm.includes('acai') || norm.includes('açai')) return 'acai';
   if (norm.includes('suco')) return 'suco';
   if (norm.includes('sorvete')) return 'sorvete';
+  // "KG" = sorvete sold by weight
+  if (norm === 'kg') return 'sorvete';
   // PDV uses "COPO XXX ML" for açaí cups (possibly followed by complements)
   if (/^copo\s+\d+\s*ml\b/.test(norm)) return 'acai';
   return null;
@@ -169,6 +181,7 @@ function splitComplements(text: string): string[] {
     .replace(/\b(?:acai|açai|acaí|açaí|suco|sorvete|milk\s*shake|copo)\b/gi, '')
     .replace(/\d+\s*ml/gi, '')
     .replace(/\d+(?:[.,]\d+)?\s*l(?:itro)?\b/gi, '')
+    .replace(/\b(200|300|400|500|700)\b/g, '')
     .replace(/[-–—]+/g, ' ')
     .trim();
 
