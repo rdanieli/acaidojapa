@@ -99,8 +99,8 @@ function detectCategory(norm: string): string | null {
   if (norm.includes('acai') || norm.includes('açai')) return 'acai';
   if (norm.includes('suco')) return 'suco';
   if (norm.includes('sorvete')) return 'sorvete';
-  // PDV uses "COPO XXX ML" for açaí cups
-  if (/^copo\s+\d+\s*ml$/.test(norm)) return 'acai';
+  // PDV uses "COPO XXX ML" for açaí cups (possibly followed by complements)
+  if (/^copo\s+\d+\s*ml\b/.test(norm)) return 'acai';
   return null;
 }
 
