@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   // Cron-callable paths (auth checked in route handler via CRON_SECRET)
   '/api/dashboard/stock/process-daily-sales',
   '/api/dashboard/stock/seed-complements',
+  '/api/dashboard/stock/seed-revenda-milkshake',
   '/api/dashboard/orders/sync',
 ];
 
