@@ -144,6 +144,17 @@ export async function POST(request: NextRequest) {
       if (handled) return NextResponse.json({ ok: true });
     }
 
+    // 3.5 Check if this is a question (uses Groq to classify intent)
+    if (textContent && !hasImage && !hasAudio) {
+      const { classifyIntent } = await import('@/lib/whatsapp/intent-classifier');
+      const intent = await classifyIntent(textContent);
+      if (intent === 'question') {
+        const { handleQuestion } = await import('@/lib/whatsapp/chat-agent');
+        await handleQuestion(replyTo, textContent);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     console.log('[Webhook] Processing message from', replyTo);
 
     // 4. Load product catalog for AI matching
