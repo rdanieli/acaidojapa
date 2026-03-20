@@ -126,6 +126,11 @@ async function matchSoldProduct(text: string, sizeMl: number | null): Promise<nu
   const candidates = sp.filter(p => p.category === category);
   if (candidates.length === 0) return null;
 
+  // Try name-based match first (e.g., "kg" → "Sorvete KG")
+  const normText = text.toLowerCase().trim();
+  const nameMatch = candidates.find(p => p.name.toLowerCase().includes(normText));
+  if (nameMatch) return nameMatch.id;
+
   if (sizeMl) {
     const exact = candidates.find(p => p.sizeMl === sizeMl);
     if (exact) return exact.id;
