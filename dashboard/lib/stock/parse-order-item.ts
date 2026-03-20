@@ -106,6 +106,8 @@ function detectCategory(norm: string): string | null {
   if (norm.includes('milk') || norm.includes('milkshake') || norm.includes('milk shake')) return 'milkshake';
   // PDV shorthand: "M MORANGO 300" = milkshake (M = milkshake, not "medium")
   if (/^m\s+/.test(norm)) return 'milkshake';
+  // PDV: "KINDER 300", "KINDER 400", "KINDER BUENO" = milkshake
+  if (/^kinder\b/.test(norm)) return 'milkshake';
   if (norm.includes('acai') || norm.includes('açai')) return 'acai';
   if (norm.includes('suco')) return 'suco';
   if (norm.includes('sorvete')) return 'sorvete';

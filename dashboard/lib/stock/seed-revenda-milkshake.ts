@@ -12,11 +12,22 @@ const REVENDA_PRODUCTS: { name: string; aliases: string; costPerUnit: string }[]
   { name: 'Kinder Ovo', aliases: 'kinder ovo', costPerUnit: '7.00' },
   { name: 'Lays', aliases: 'lays', costPerUnit: '7.24' },
   { name: 'Doritos 75g', aliases: 'doritos,doritos 75g', costPerUnit: '7.25' },
+  { name: 'Pingo Picanha', aliases: 'pingo picanha', costPerUnit: '4.34' },
+  { name: 'Pingo Bacon', aliases: 'pingo bacon,pingo  bacon', costPerUnit: '4.34' },
+  { name: 'Kapo', aliases: 'kapo,kapo maca,kapo maça', costPerUnit: '2.50' },
+  { name: 'Cheetos Onda 105g', aliases: 'cheetos,cheetos onda,cheetos onda 105g,cheetos - lua parmesao,cheetos lua parmesao', costPerUnit: '7.25' },
+  { name: 'Ruffles', aliases: 'ruffles', costPerUnit: '7.12' },
+  { name: 'Toddynho', aliases: 'toddynho,todynho', costPerUnit: '2.84' },
+  { name: 'Brahma', aliases: 'brahma,cerveja brahma', costPerUnit: '5.20' },
+  { name: 'Fandangos', aliases: 'fandangos', costPerUnit: '7.25' },
 ];
 
-const MILKSHAKE_SOLD_PRODUCTS: { name: string; sizeMl: number; costPrice: string }[] = [
+const MILKSHAKE_SOLD_PRODUCTS: { name: string; sizeMl: number | null; costPrice: string }[] = [
   { name: 'Milkshake Morango 300ml', sizeMl: 300, costPrice: '8.85' },
   { name: 'Milkshake Morango 400ml', sizeMl: 400, costPrice: '11.08' },
+  { name: 'Milkshake Kinder 300ml', sizeMl: 300, costPrice: '8.35' },
+  { name: 'Milkshake Kinder 400ml', sizeMl: 400, costPrice: '8.35' },
+  { name: 'Milkshake Kinder Bueno', sizeMl: null, costPrice: '8.35' },
 ];
 
 const SORVETE_KG_SOLD_PRODUCT = { name: 'Sorvete KG', sizeMl: null, costPrice: null };
