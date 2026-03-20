@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { products, soldProducts, productNameAliases } from '@/lib/db/schema';
-import { eq, ilike } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export type SizeTier = 'small' | 'medium' | 'large';
 
@@ -12,7 +12,7 @@ export interface ParsedOrderItem {
   unmatchedFragments: string[];
 }
 
-// In-memory caches (per process lifetime)
+// In-memory caches
 let aliasCache: Map<string, number> | null = null;
 let complementCache: Map<string, number> | null = null;
 let soldProductCache: { id: number; name: string; sizeMl: number | null; category: string | null }[] | null = null;
@@ -71,7 +71,6 @@ async function loadSoldProductCache() {
 
 /** Extract size in ml from item name */
 function extractSizeMl(text: string): number | null {
-  // Match patterns like "200ml", "300 ml", "1l", "1 litro"
   const mlMatch = text.match(/(\d+)\s*ml/i);
   if (mlMatch) return parseInt(mlMatch[1], 10);
 
@@ -88,36 +87,43 @@ export function mlToSizeTier(ml: number): SizeTier {
   return 'large';
 }
 
+/**
+ * Detect category from item name.
+ * "COPO 300 ML" → acai (PDV names for açaí cups are just "COPO")
+ * "Açaí no Copo - 300ml" → acai
+ * "Milk Shake - Copo 300ML" → milkshake
+ * "SORVETE" → sorvete
+ */
+function detectCategory(norm: string): string | null {
+  if (norm.includes('milk') || norm.includes('milkshake') || norm.includes('milk shake')) return 'milkshake';
+  if (norm.includes('acai') || norm.includes('açai')) return 'acai';
+  if (norm.includes('suco')) return 'suco';
+  if (norm.includes('sorvete')) return 'sorvete';
+  // PDV uses "COPO XXX ML" for açaí cups
+  if (/^copo\s+\d+\s*ml$/.test(norm)) return 'acai';
+  return null;
+}
+
 /** Find the best matching sold product */
 async function matchSoldProduct(text: string, sizeMl: number | null): Promise<number | null> {
   const sp = await loadSoldProductCache();
-  const norm = normalize(text);
-
-  // Determine category
-  let category: string | null = null;
-  if (norm.includes('acai') || norm.includes('açaí')) category = 'acai';
-  else if (norm.includes('suco')) category = 'suco';
-  else if (norm.includes('sorvete')) category = 'sorvete';
+  const category = detectCategory(text);
 
   if (!category) return null;
 
-  // Filter by category, then best match by size
   const candidates = sp.filter(p => p.category === category);
   if (candidates.length === 0) return null;
 
   if (sizeMl) {
-    // Exact size match
     const exact = candidates.find(p => p.sizeMl === sizeMl);
     if (exact) return exact.id;
 
-    // Closest size
     const sorted = [...candidates]
       .filter(p => p.sizeMl != null)
       .sort((a, b) => Math.abs(a.sizeMl! - sizeMl) - Math.abs(b.sizeMl! - sizeMl));
     if (sorted.length > 0) return sorted[0].id;
   }
 
-  // Return first match
   return candidates[0].id;
 }
 
@@ -126,10 +132,8 @@ async function matchComplement(fragment: string): Promise<number | null> {
   const cache = await loadComplementCache();
   const norm = normalize(fragment);
 
-  // Exact match
   if (cache.has(norm)) return cache.get(norm)!;
 
-  // Partial match: check if any complement name is contained in the fragment or vice versa
   for (const [name, id] of cache) {
     if (norm.includes(name) || name.includes(norm)) return id;
   }
@@ -137,27 +141,47 @@ async function matchComplement(fragment: string): Promise<number | null> {
   return null;
 }
 
+/**
+ * Noise words/fragments to ignore when parsing complements.
+ * These appear in order item names but aren't actual complement names.
+ */
+const NOISE_PATTERNS = [
+  /^no\s+copo/,
+  /^copo$/,
+  /^-+$/,
+  /^do\s+/,
+  /^da\s+/,
+  /^de\s+/,
+  /^em\s+/,
+  /^um\s+/,
+  /^uma\s+/,
+];
+
+function isNoise(fragment: string): boolean {
+  const norm = fragment.trim();
+  if (norm.length <= 2) return true;
+  return NOISE_PATTERNS.some(p => p.test(norm));
+}
+
 /** Split complement text into individual fragments */
 function splitComplements(text: string): string[] {
-  // Remove the base product part (acai XXml, etc.)
   let cleaned = text
-    .replace(/\b(?:acai|açaí|suco|sorvete)\b/gi, '')
+    .replace(/\b(?:acai|açai|acaí|açaí|suco|sorvete|milk\s*shake|copo)\b/gi, '')
     .replace(/\d+\s*ml/gi, '')
     .replace(/\d+(?:[.,]\d+)?\s*l(?:itro)?\b/gi, '')
+    .replace(/[-–—]+/g, ' ')
     .trim();
 
-  // Split on common separators: +, comma, "c/", "com", " e ", " / "
   const parts = cleaned
     .split(/\s*(?:\+|,|c\/|com\s+|\s+e\s+|\/)\s*/i)
     .map(s => s.trim())
-    .filter(s => s.length > 1);
+    .filter(s => !isNoise(s));
 
   return parts;
 }
 
 /**
  * Parse an order item name into its components.
- * Returns the matched sold product, size tier, complements, and unmatched fragments.
  */
 export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem> {
   const norm = normalize(itemName);
@@ -166,7 +190,6 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
   const aliases = await loadAliasCache();
   const aliasMatch = aliases.get(norm);
   if (aliasMatch) {
-    // For aliased items, we still need to extract size
     const sizeMl = extractSizeMl(norm);
     const sizeTier = sizeMl ? mlToSizeTier(sizeMl) : null;
     return {
@@ -201,7 +224,7 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
     }
   }
 
-  // 5. Auto-save alias if we got a good match (base product + no unmatched)
+  // 5. Auto-save alias if we got a good match
   if (soldProductId && unmatchedFragments.length === 0) {
     try {
       await db.insert(productNameAliases).values({
@@ -209,10 +232,9 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
         soldProductId,
         source: 'auto',
       }).onConflictDoNothing();
-      // Invalidate cache so next lookup uses it
       aliasCache = null;
     } catch {
-      // Ignore duplicate constraint
+      // Ignore
     }
   }
 
