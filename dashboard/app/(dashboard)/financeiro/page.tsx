@@ -112,6 +112,15 @@ export default function FinanceiroPage() {
                   <p className="text-xs text-muted-foreground/60 mt-0.5">
                     Esses itens vendidos não possuem alias ou receita cadastrada. O CMV deles está sendo calculado como R$ 0,00. Configure em Fichas Técnicas.
                   </p>
+                  {fin.unmappedNames && fin.unmappedNames.length > 0 && (
+                    <div className="mt-2 max-h-32 overflow-y-auto">
+                      {fin.unmappedNames.map((item: { name: string; count: number }) => (
+                        <p key={item.name} className="text-xs text-muted-foreground/50 font-mono">
+                          {item.count}x — {item.name}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

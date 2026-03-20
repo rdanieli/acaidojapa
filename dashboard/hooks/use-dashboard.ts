@@ -640,6 +640,7 @@ export function useFinancial(start: Date, end: Date, channel: Channel) {
       hasRecipe: boolean;
     }[];
     unmappedItems: number;
+    unmappedNames: { name: string; count: number }[];
   }>({
     queryKey: ['financial', formatDateISO(start), formatDateISO(end), channel],
     queryFn: async () => {

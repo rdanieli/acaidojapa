@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
     let totalRevenue = 0;
     let totalCmv = 0;
     let unmappedItems = 0;
+    const unmappedNameCounts = new Map<string, number>();
 
     const productStats = new Map<string, {
       soldProductId: number;
@@ -175,6 +176,7 @@ export async function GET(request: NextRequest) {
 
       if (!parsed.soldProductId) {
         unmappedItems++;
+        unmappedNameCounts.set(item.name, (unmappedNameCounts.get(item.name) || 0) + 1);
         const normalizedName = item.name.toLowerCase().trim();
         const key = `unmapped-${normalizedName}`;
         const existing = productStats.get(key);
@@ -285,6 +287,9 @@ export async function GET(request: NextRequest) {
       dailyTrend,
       productMargins,
       unmappedItems,
+      unmappedNames: Array.from(unmappedNameCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
     });
   } catch (error: any) {
     console.error('Financial API error:', error);
