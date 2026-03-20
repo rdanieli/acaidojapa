@@ -621,6 +621,64 @@ export function useDeleteAlias() {
   });
 }
 
+// --- Financial Dashboard ---
+export function useFinancial(start: Date, end: Date, channel: Channel) {
+  return useQuery<{
+    revenue: number;
+    cmv: number;
+    grossProfit: number;
+    marginPercent: number;
+    dailyTrend: { date: string; revenue: number; cmv: number; profit: number }[];
+    productMargins: {
+      soldProductId: number;
+      name: string;
+      qtySold: number;
+      revenue: number;
+      cmv: number;
+      profit: number;
+      marginPercent: number;
+      hasRecipe: boolean;
+    }[];
+    unmappedItems: number;
+  }>({
+    queryKey: ['financial', formatDateISO(start), formatDateISO(end), channel],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/financial?${buildParams(start, end, channel)}`);
+      if (!res.ok) throw new Error('Failed to fetch financial data');
+      return res.json();
+    },
+  });
+}
+
+export function usePurchases(start: Date, end: Date) {
+  return useQuery<{
+    totalSpent: number;
+    entryCount: number;
+    avgPerEntry: number;
+    byCategory: { category: string; label: string; amount: number }[];
+    dailySpending: { date: string; amount: number }[];
+    productDetails: {
+      name: string;
+      category: string;
+      qtyPurchased: number;
+      unit: string;
+      totalSpent: number;
+      costPerUnit: number;
+    }[];
+  }>({
+    queryKey: ['purchases', formatDateISO(start), formatDateISO(end)],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        start: formatDateISO(start),
+        end: formatDateISO(end),
+      });
+      const res = await fetch(`/api/dashboard/purchases?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch purchases data');
+      return res.json();
+    },
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({

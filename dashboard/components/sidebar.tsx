@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, IceCreamCone, ClipboardList, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, IceCreamCone, ClipboardList, ClipboardCheck, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +13,7 @@ const links = [
   { href: '/estoque', label: 'Estoque', icon: Package },
   { href: '/fichas-tecnicas', label: 'Fichas Técnicas', icon: ClipboardList },
   { href: '/consolidacao', label: 'Inventário', icon: ClipboardCheck },
+  { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
 ];
 
 export function Sidebar() {
