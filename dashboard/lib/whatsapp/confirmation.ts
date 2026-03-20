@@ -77,11 +77,17 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
         }
       }
 
-      // Update currentStock
+      // Update currentStock and costPerUnit
+      const totalPrice = item.totalPrice ? Number(item.totalPrice) : null;
+      const costPerUnit = totalPrice != null && stockIncrement > 0
+        ? String((totalPrice / stockIncrement).toFixed(2))
+        : undefined;
+
       await db
         .update(products)
         .set({
           currentStock: sql`${products.currentStock}::numeric + ${String(stockIncrement)}::numeric`,
+          ...(costPerUnit != null ? { costPerUnit } : {}),
         })
         .where(eq(products.id, item.productId));
 
