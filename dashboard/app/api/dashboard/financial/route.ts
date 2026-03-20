@@ -1,8 +1,18 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { orders, orderItems, productNameAliases, soldProducts, recipes, products } from '@/lib/db/schema';
-import { and, gte, lte, eq, desc, inArray, sql } from 'drizzle-orm';
+import { orders, orderItems, soldProducts, recipes, products, complementGramages } from '@/lib/db/schema';
+import { and, gte, lte, eq, desc, inArray } from 'drizzle-orm';
+import { parseOrderItem, clearParserCaches } from '@/lib/stock/parse-order-item';
+
+/** Cup total weight = sizeMl in grams (200ml cup = 200g total) */
+const CUP_WEIGHTS: Record<number, number> = {
+  200: 200,
+  300: 300,
+  400: 400,
+  500: 500,
+  700: 700,
+};
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -15,6 +25,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    clearParserCaches();
+
     // 1. Fetch completed orders in the period
     const conditions = [
       gte(orders.date, start),
@@ -49,19 +61,13 @@ export async function GET(request: NextRequest) {
       .from(orderItems)
       .where(inArray(orderItems.orderId, orderIds));
 
-    // 3. Load all alias mappings, sold products, recipes, and product costs
-    const [aliasRows, soldProductRows, recipeRows, productRows] = await Promise.all([
-      db.select().from(productNameAliases),
+    // 3. Load sold products, recipes, product costs, complement gramages, and açaí product
+    const [soldProductRows, recipeRows, productRows, complementGramageRows] = await Promise.all([
       db.select().from(soldProducts),
       db.select().from(recipes),
       db.select().from(products).where(eq(products.active, true)),
+      db.select().from(complementGramages),
     ]);
-
-    // Build lookup maps
-    const aliasMap = new Map<string, number>(); // normalized alias → soldProductId
-    for (const a of aliasRows) {
-      aliasMap.set(a.alias.toLowerCase().trim(), a.soldProductId);
-    }
 
     const soldProductMap = new Map<number, typeof soldProductRows[0]>();
     for (const sp of soldProductRows) {
@@ -86,8 +92,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Complement gramages: Map<"productId-sizeTier", quantityG>
+    const gramageMap = new Map<string, number>();
+    for (const cg of complementGramageRows) {
+      gramageMap.set(`${cg.productId}-${cg.sizeTier}`, Number(cg.quantityG));
+    }
+
+    // Find açaí product ID
+    const acaiProduct = productRows.find(p => p.name === 'Açaí');
+    const acaiProductId = acaiProduct?.id ?? null;
+
     // 4. Group orders by date for daily trend
-    const orderDateMap = new Map<number, string>(); // orderId → date
+    const orderDateMap = new Map<number, string>();
     for (const o of dbOrders) {
       orderDateMap.set(o.id, o.date);
     }
@@ -97,7 +113,6 @@ export async function GET(request: NextRequest) {
     let totalCmv = 0;
     let unmappedItems = 0;
 
-    // Per-product margin tracking
     const productStats = new Map<string, {
       soldProductId: number;
       name: string;
@@ -106,44 +121,36 @@ export async function GET(request: NextRequest) {
       cmv: number;
     }>();
 
-    // Per-day tracking
     const dailyMap = new Map<string, { revenue: number; cmv: number }>();
 
+    /** Calculate cost from a product's weight in grams */
+    function getIngredientCostG(productId: number, quantityG: number): number {
+      const info = productCostMap.get(productId);
+      if (!info || info.costPerUnit === 0) return 0;
+
+      if (info.defaultUnit === 'kg') {
+        return (quantityG / 1000) * info.costPerUnit;
+      } else if (info.defaultUnit === 'g') {
+        return quantityG * info.costPerUnit;
+      } else if (info.defaultUnit === 'L') {
+        return (quantityG / 1000) * info.costPerUnit;
+      } else if (info.defaultUnit === 'un') {
+        if (info.unitWeightG && info.unitWeightG > 0) {
+          return (quantityG / info.unitWeightG) * info.costPerUnit;
+        }
+        return quantityG * info.costPerUnit;
+      }
+      return (quantityG / 1000) * info.costPerUnit;
+    }
+
+    /** Fallback: recipe-based cost for non-cup products (sucos, sorvetes, etc.) */
     function getRecipeCost(soldProductId: number): number {
       const recipeIngredients = recipeMap.get(soldProductId);
       if (!recipeIngredients || recipeIngredients.length === 0) return 0;
 
       let cost = 0;
       for (const ingredient of recipeIngredients) {
-        const productInfo = productCostMap.get(ingredient.productId);
-        if (!productInfo || productInfo.costPerUnit === 0) continue;
-
-        const quantityG = Number(ingredient.quantityG);
-
-        // Convert based on defaultUnit of the product
-        if (productInfo.defaultUnit === 'kg') {
-          // costPerUnit is per kg, quantityG is in grams → divide by 1000
-          cost += (quantityG / 1000) * productInfo.costPerUnit;
-        } else if (productInfo.defaultUnit === 'g') {
-          // costPerUnit is per gram
-          cost += quantityG * productInfo.costPerUnit;
-        } else if (productInfo.defaultUnit === 'L') {
-          // Assume 1g ≈ 1ml → quantityG/1000 = liters
-          cost += (quantityG / 1000) * productInfo.costPerUnit;
-        } else if (productInfo.defaultUnit === 'un') {
-          // unitWeightG tells us how many grams per unit
-          if (productInfo.unitWeightG && productInfo.unitWeightG > 0) {
-            const units = quantityG / productInfo.unitWeightG;
-            cost += units * productInfo.costPerUnit;
-          } else {
-            // Fallback: treat quantityG as quantity in grams, costPerUnit as per-unit
-            // If no weight info, assume 1 unit = 1g (unlikely but safe fallback)
-            cost += quantityG * productInfo.costPerUnit;
-          }
-        } else {
-          // Default: treat as kg
-          cost += (quantityG / 1000) * productInfo.costPerUnit;
-        }
+        cost += getIngredientCostG(ingredient.productId, Number(ingredient.quantityG));
       }
       return cost;
     }
@@ -163,13 +170,12 @@ export async function GET(request: NextRequest) {
         dailyMap.set(date, { revenue: itemRevenue, cmv: 0 });
       }
 
-      // Find soldProduct via alias
-      const normalizedName = item.name.toLowerCase().trim();
-      const soldProductId = aliasMap.get(normalizedName);
+      // Parse item using the stock parser
+      const parsed = await parseOrderItem(item.name);
 
-      if (!soldProductId) {
+      if (!parsed.soldProductId) {
         unmappedItems++;
-        // Still track revenue per product name even without CMV
+        const normalizedName = item.name.toLowerCase().trim();
         const key = `unmapped-${normalizedName}`;
         const existing = productStats.get(key);
         if (existing) {
@@ -187,8 +193,37 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const recipeCost = getRecipeCost(soldProductId);
-      const itemCmv = recipeCost * qty;
+      let itemCmv = 0;
+
+      // Dynamic CMV for açaí cups (has sizeMl and sizeTier)
+      if (parsed.sizeMl && parsed.sizeTier) {
+        const cupWeightG = CUP_WEIGHTS[parsed.sizeMl] || parsed.sizeMl;
+
+        // Calculate complement costs and total complement weight
+        let totalComplementsG = 0;
+        let complementCost = 0;
+
+        for (const compProductId of parsed.complementProductIds) {
+          const compG = gramageMap.get(`${compProductId}-${parsed.sizeTier}`) ?? 0;
+          if (compG > 0) {
+            totalComplementsG += compG;
+            complementCost += getIngredientCostG(compProductId, compG);
+          }
+        }
+
+        // Açaí polpa = cup weight - complements
+        if (acaiProductId) {
+          const polpaG = Math.max(cupWeightG - totalComplementsG, 0);
+          if (polpaG > 0) {
+            complementCost += getIngredientCostG(acaiProductId, polpaG);
+          }
+        }
+
+        itemCmv = complementCost * qty;
+      } else {
+        // Fallback: recipe-based cost for non-cup products
+        itemCmv = getRecipeCost(parsed.soldProductId) * qty;
+      }
 
       totalCmv += itemCmv;
 
@@ -197,8 +232,8 @@ export async function GET(request: NextRequest) {
       if (dailyEntry) dailyEntry.cmv += itemCmv;
 
       // Track per-product stats
-      const sp = soldProductMap.get(soldProductId);
-      const productKey = `sp-${soldProductId}`;
+      const sp = soldProductMap.get(parsed.soldProductId);
+      const productKey = `sp-${parsed.soldProductId}`;
       const existing = productStats.get(productKey);
       if (existing) {
         existing.qtySold += qty;
@@ -206,7 +241,7 @@ export async function GET(request: NextRequest) {
         existing.cmv += itemCmv;
       } else {
         productStats.set(productKey, {
-          soldProductId,
+          soldProductId: parsed.soldProductId,
           name: sp?.name || item.name,
           qtySold: qty,
           revenue: itemRevenue,
@@ -238,7 +273,7 @@ export async function GET(request: NextRequest) {
         cmv: Math.round(p.cmv * 100) / 100,
         profit: Math.round((p.revenue - p.cmv) * 100) / 100,
         marginPercent: p.revenue > 0 ? Math.round(((p.revenue - p.cmv) / p.revenue) * 10000) / 100 : 0,
-        hasRecipe: p.soldProductId > 0 && (recipeMap.get(p.soldProductId)?.length || 0) > 0,
+        hasRecipe: p.soldProductId > 0,
       }))
       .sort((a, b) => b.profit - a.profit);
 
