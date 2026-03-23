@@ -9,6 +9,7 @@ export interface UnifiedOrder {
   salesChannel?: string;
   items: UnifiedItem[];
   payments: UnifiedPayment[];
+  rawData?: any; // Original API response (for complement extraction)
 }
 
 export interface UnifiedItem {

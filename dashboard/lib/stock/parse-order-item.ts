@@ -206,27 +206,16 @@ function splitComplements(text: string): string[] {
 export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem> {
   const norm = normalize(itemName);
 
-  // 1. Check alias cache first
+  // 1. Check alias cache for fast soldProduct resolution
   const aliases = await loadAliasCache();
-  const aliasMatch = aliases.get(norm);
-  if (aliasMatch) {
-    const sizeMl = extractSizeMl(norm);
-    const sizeTier = sizeMl ? mlToSizeTier(sizeMl) : null;
-    return {
-      soldProductId: aliasMatch,
-      sizeMl,
-      sizeTier,
-      complementProductIds: [],
-      unmatchedFragments: [],
-    };
-  }
+  const aliasMatch = aliases.get(norm) ?? null;
 
   // 2. Extract size
   const sizeMl = extractSizeMl(norm);
   const sizeTier = sizeMl ? mlToSizeTier(sizeMl) : null;
 
-  // 3. Match base product
-  const soldProductId = await matchSoldProduct(norm, sizeMl);
+  // 3. Match base product (use alias if available, otherwise full match)
+  const soldProductId = aliasMatch ?? await matchSoldProduct(norm, sizeMl);
 
   // 4. Extract and match complements
   const fragments = splitComplements(norm);

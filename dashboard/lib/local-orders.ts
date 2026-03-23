@@ -33,6 +33,7 @@ function toUnifiedOrder(
     salesChannel: o.salesChannel || undefined,
     items: unifiedItems,
     payments,
+    rawData: o.rawData,
   };
 }
 

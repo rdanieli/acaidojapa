@@ -12,6 +12,7 @@ import { syncOrdersForDate } from '@/lib/sync-orders';
 import { getLocalOrders } from '@/lib/local-orders';
 import { parseOrderItem, clearParserCaches, mlToSizeTier } from './parse-order-item';
 import { deductProductStock } from './deduct-stock';
+import { getComplementsForItem, clearComplementCaches } from './extract-complements';
 import type { UnifiedOrder } from '@/lib/types';
 
 /** Açaí product ID in the products table (the base polpa) */
@@ -49,6 +50,7 @@ async function getAcaiProductId(): Promise<number | null> {
 
 export async function processDailySales(date: string): Promise<RunResult> {
   clearParserCaches();
+  clearComplementCaches();
 
   const [run] = await db.insert(dailyStockRuns).values({
     date,
@@ -127,7 +129,8 @@ export async function processDailySales(date: string): Promise<RunResult> {
 
         let orderErrors: string[] = [];
 
-        for (const item of order.items) {
+        for (let itemIdx = 0; itemIdx < order.items.length; itemIdx++) {
+          const item = order.items[itemIdx];
           try {
             const parsed = await parseOrderItem(item.name);
 
@@ -150,11 +153,18 @@ export async function processDailySales(date: string): Promise<RunResult> {
             const sizeTier = parsed.sizeTier;
             const cupWeightG = sizeMl ? (CUP_WEIGHTS[sizeMl] || sizeMl) : null;
 
+            // --- Extract complements from raw_data (not from item name) ---
+            const { complementProductIds, unmatchedNames } = await getComplementsForItem(
+              order.rawData,
+              order.channel,
+              itemIdx,
+            );
+
             // --- Deduct complements and track total complement weight ---
             let totalComplementsG = 0;
 
-            if (sizeTier && parsed.complementProductIds.length > 0) {
-              for (const compProductId of parsed.complementProductIds) {
+            if (sizeTier && complementProductIds.length > 0) {
+              for (const compProductId of complementProductIds) {
                 const [gramage] = await db
                   .select()
                   .from(complementGramages)
@@ -196,9 +206,9 @@ export async function processDailySales(date: string): Promise<RunResult> {
               }
             }
 
-            // Track unmatched fragments
-            for (const frag of parsed.unmatchedFragments) {
-              unmatchedItems.push(`${item.name} → "${frag}"`);
+            // Track unmatched complement names
+            for (const name of unmatchedNames) {
+              unmatchedItems.push(`${item.name} → complemento "${name}"`);
             }
           } catch (err: any) {
             orderErrors.push(`Item "${item.name}": ${err.message}`);
