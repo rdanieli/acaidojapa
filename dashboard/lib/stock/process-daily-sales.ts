@@ -5,6 +5,7 @@ import {
   complementGramages,
   processedOrders,
   dailyStockRuns,
+  soldProducts,
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { syncOrdersForDate } from '@/lib/sync-orders';
@@ -76,6 +77,39 @@ export async function processDailySales(date: string): Promise<RunResult> {
     // Get açaí product ID once
     const acaiProductId = await getAcaiProductId();
 
+    // Build revenda alias set for skipping (no stock deduction needed)
+    const revendaProducts = await db
+      .select({ name: products.name, aliases: products.aliases })
+      .from(products)
+      .where(eq(products.category, 'revenda'));
+    const revendaAliases = new Set<string>();
+    for (const p of revendaProducts) {
+      revendaAliases.add(p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+      if (p.aliases) {
+        for (const a of p.aliases.split(',')) {
+          const norm = a.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+          if (norm) revendaAliases.add(norm);
+        }
+      }
+    }
+
+    // Build set of soldProduct categories that don't need stock deduction
+    const noDeductCategories = new Set(['milkshake', 'sorvete']);
+    const soldProductRows = await db.select({ id: soldProducts.id, category: soldProducts.category }).from(soldProducts);
+    const soldProductCategoryMap = new Map<number, string | null>();
+    for (const sp of soldProductRows) {
+      soldProductCategoryMap.set(sp.id, sp.category);
+    }
+
+    function isRevendaItem(itemName: string): boolean {
+      const norm = itemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+      if (revendaAliases.has(norm)) return true;
+      for (const alias of revendaAliases) {
+        if (norm.includes(alias) || alias.includes(norm)) return true;
+      }
+      return false;
+    }
+
     // Process each order
     for (const order of completedOrders) {
       try {
@@ -98,7 +132,16 @@ export async function processDailySales(date: string): Promise<RunResult> {
             const parsed = await parseOrderItem(item.name);
 
             if (!parsed.soldProductId) {
-              unmatchedItems.push(item.name);
+              // Revenda items don't need stock deduction — skip silently
+              if (!isRevendaItem(item.name)) {
+                unmatchedItems.push(item.name);
+              }
+              continue;
+            }
+
+            // Milkshakes and sorvete don't have ingredient recipes for stock deduction
+            const spCategory = soldProductCategoryMap.get(parsed.soldProductId);
+            if (spCategory && noDeductCategories.has(spCategory)) {
               continue;
             }
 
