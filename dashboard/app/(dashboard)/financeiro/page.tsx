@@ -38,7 +38,7 @@ export default function FinanceiroPage() {
   return (
     <div className="space-y-6">
       {/* Tab bar */}
-      <div className="flex items-center gap-1 rounded-xl bg-white/[0.04] p-1 border border-white/[0.06] w-fit">
+      <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1 border border-border w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
@@ -47,7 +47,7 @@ export default function FinanceiroPage() {
               'rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer',
               tab === t.key
                 ? 'bg-acai/20 text-acai shadow-sm'
-                : 'text-muted-foreground/70 hover:text-foreground hover:bg-white/[0.04]',
+                : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/60',
             )}
             onClick={() => setTab(t.key)}
           >
@@ -308,7 +308,7 @@ function ProductMarginsTable({
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-left text-xs text-muted-foreground/60">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground/60">
                 <th className="px-5 py-2.5 font-medium">Produto</th>
                 <ThSortable label="Qtd" sortKey="qtySold" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <ThSortable label="Receita" sortKey="revenue" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -319,7 +319,7 @@ function ProductMarginsTable({
             </thead>
             <tbody>
               {sorted.map((p, i) => (
-                <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                <tr key={i} className="border-b border-white/[0.03] hover:bg-muted/30 transition-colors">
                   <td className="px-5 py-2.5 font-medium">
                     <span className="flex items-center gap-2">
                       {p.name}
@@ -420,7 +420,7 @@ function PurchaseDetailsTable({
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-left text-xs text-muted-foreground/60">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground/60">
                 <th className="px-5 py-2.5 font-medium">Produto</th>
                 <th className="px-3 py-2.5 font-medium">Categoria</th>
                 <th className="px-3 py-2.5 font-medium text-right">Qtd Comprada</th>
@@ -430,10 +430,10 @@ function PurchaseDetailsTable({
             </thead>
             <tbody>
               {data.map((p, i) => (
-                <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                <tr key={i} className="border-b border-white/[0.03] hover:bg-muted/30 transition-colors">
                   <td className="px-5 py-2.5 font-medium">{p.name}</td>
                   <td className="px-3 py-2.5">
-                    <span className="text-xs text-muted-foreground/80 bg-white/[0.04] px-2 py-0.5 rounded">
+                    <span className="text-xs text-muted-foreground/80 bg-muted/60 px-2 py-0.5 rounded">
                       {categoryLabels[p.category] || p.category}
                     </span>
                   </td>

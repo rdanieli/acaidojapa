@@ -63,7 +63,7 @@ export function OrdersTable({ orders, loading, onSelect }: OrdersTableProps) {
     <div className="glass-card rounded-xl overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="border-white/[0.06] hover:bg-transparent">
+          <TableRow className="border-border hover:bg-transparent">
             <TableHead className="w-16 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">#</TableHead>
             <TableHead className="w-16 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Hora</TableHead>
             <TableHead className="w-20 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Canal</TableHead>
@@ -77,7 +77,7 @@ export function OrdersTable({ orders, loading, onSelect }: OrdersTableProps) {
           {orders.map((order) => (
             <TableRow
               key={order.id}
-              className="cursor-pointer border-white/[0.04] transition-colors duration-150 hover:bg-white/[0.03]"
+              className="cursor-pointer border-border/60 transition-colors duration-150 hover:bg-muted/50"
               onClick={() => onSelect(order)}
             >
               <TableCell className="font-mono text-xs text-muted-foreground">{order.displayId}</TableCell>

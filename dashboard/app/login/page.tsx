@@ -82,7 +82,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin"
                 autoComplete="username"
-                className="h-11 bg-white/5 border-white/10 focus:border-acai/50 focus:ring-acai/20 transition-all duration-200 placeholder:text-muted-foreground/50"
+                className="h-11 bg-muted/50 border-border focus:border-acai/50 focus:ring-acai/20 transition-all duration-200 placeholder:text-muted-foreground/50"
               />
             </div>
             <div className="space-y-2">
@@ -95,7 +95,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="h-11 bg-white/5 border-white/10 focus:border-acai/50 focus:ring-acai/20 transition-all duration-200 placeholder:text-muted-foreground/50"
+                className="h-11 bg-muted/50 border-border focus:border-acai/50 focus:ring-acai/20 transition-all duration-200 placeholder:text-muted-foreground/50"
               />
             </div>
 

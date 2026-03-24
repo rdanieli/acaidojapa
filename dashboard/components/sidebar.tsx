@@ -27,7 +27,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-sidebar md:flex border-r border-white/[0.06]">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-sidebar md:flex border-r border-border">
       {/* Logo area */}
       <div className="relative flex h-16 items-center gap-3 px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-acai shadow-lg shadow-acai/20">
@@ -54,7 +54,7 @@ export function Sidebar() {
                 'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 active
                   ? 'bg-acai/15 text-acai shadow-sm'
-                  : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
               )}
             >
               {active && (
@@ -71,7 +71,7 @@ export function Sidebar() {
       </nav>
 
       <div className="p-3">
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/[0.06] to-transparent mb-3" />
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent mb-3" />
         <Button
           variant="ghost"
           size="sm"
@@ -90,7 +90,7 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-white/[0.06] bg-background/90 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
       {links.map(({ href, label, icon: Icon }) => {
         const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
         return (

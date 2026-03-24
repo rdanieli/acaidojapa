@@ -74,7 +74,7 @@ export function AllowedSenders() {
               placeholder="5583993698623"
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
-              className="h-9 bg-white/[0.03] border-white/[0.08] focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
+              className="h-9 bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
             />
           </div>
           <div className="flex-1 space-y-1">
@@ -86,7 +86,7 @@ export function AllowedSenders() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              className="h-9 bg-white/[0.03] border-white/[0.08] focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
+              className="h-9 bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
             />
           </div>
           <Button
@@ -116,7 +116,7 @@ export function AllowedSenders() {
         <div className="glass-card rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Nome</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Telefone</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Verificação</TableHead>
@@ -127,7 +127,7 @@ export function AllowedSenders() {
               {senders.map((s: any) => {
                 const isVerified = s.verificationStatus === 'verified';
                 return (
-                  <TableRow key={s.id} className="border-white/[0.04] hover:bg-white/[0.03]">
+                  <TableRow key={s.id} className="border-border/60 hover:bg-muted/50">
                     <TableCell className="text-sm font-medium">{s.name}</TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground/70">
                       +{s.phone.replace(/(\d{2})(\d{2})(\d{4,5})(\d{4})/, '$1 $2 $3-$4')}
@@ -147,7 +147,7 @@ export function AllowedSenders() {
                           <button
                             onClick={() => resend.mutate(s.id)}
                             disabled={resend.isPending}
-                            className="p-1 rounded-md hover:bg-white/[0.06] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                            className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                             title="Reenviar verificação"
                           >
                             <RefreshCw className={cn('h-3 w-3', resend.isPending && 'animate-spin')} />

@@ -78,7 +78,7 @@ export default function ConsolidacaoPage() {
     return (
       <div className="space-y-5 animate-fade-in">
         <div className="flex items-center gap-3">
-          <button onClick={() => { setViewId(null); setEditedItems({}); }} className="p-2 rounded-xl hover:bg-white/[0.06] text-muted-foreground/60">
+          <button onClick={() => { setViewId(null); setEditedItems({}); }} className="p-2 rounded-xl hover:bg-muted/80 text-muted-foreground/60">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
@@ -103,7 +103,7 @@ export default function ConsolidacaoPage() {
         <div className="glass-card rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Produto</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50 w-28">Teórico</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50 w-28">Real</TableHead>
@@ -120,7 +120,7 @@ export default function ConsolidacaoPage() {
                 const diffPct = expected > 0 && diff != null ? Math.abs(diff / expected) * 100 : 0;
 
                 return (
-                  <TableRow key={item.id} className="border-white/[0.04] hover:bg-white/[0.03]">
+                  <TableRow key={item.id} className="border-border/60 hover:bg-muted/50">
                     <TableCell>
                       <span className="text-sm font-medium">{item.productName}</span>
                       <span className="text-xs text-muted-foreground/40 ml-1">({item.defaultUnit})</span>
@@ -136,7 +136,7 @@ export default function ConsolidacaoPage() {
                           value={edited.actualStock}
                           onChange={(e) => setEdited(item.id, 'actualStock', e.target.value)}
                           type="number"
-                          className="h-7 w-24 text-xs bg-white/[0.05] border-white/[0.08]"
+                          className="h-7 w-24 text-xs bg-muted/70 border-border"
                         />
                       )}
                     </TableCell>
@@ -160,7 +160,7 @@ export default function ConsolidacaoPage() {
                           value={edited.notes}
                           onChange={(e) => setEdited(item.id, 'notes', e.target.value)}
                           placeholder="..."
-                          className="h-7 text-xs bg-white/[0.05] border-white/[0.08]"
+                          className="h-7 text-xs bg-muted/70 border-border"
                         />
                       )}
                     </TableCell>
@@ -208,7 +208,7 @@ export default function ConsolidacaoPage() {
             <div
               key={c.id}
               onClick={() => setViewId(c.id)}
-              className="glass-card rounded-xl p-4 cursor-pointer hover:bg-white/[0.04] transition-all"
+              className="glass-card rounded-xl p-4 cursor-pointer hover:bg-muted/60 transition-all"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Inventário #{c.id}</h3>

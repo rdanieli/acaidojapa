@@ -79,7 +79,7 @@ export function ProductRankingTable({ products, loading }: ProductRankingTablePr
     <div className="glass-card rounded-xl overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="border-white/[0.06] hover:bg-transparent">
+          <TableRow className="border-border hover:bg-transparent">
             <TableHead className="w-8 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">#</TableHead>
             <SortHeader label="Produto" field="name" />
             <SortHeader label="Qty" field="qty" />
@@ -91,7 +91,7 @@ export function ProductRankingTable({ products, loading }: ProductRankingTablePr
         </TableHeader>
         <TableBody>
           {sorted.map((p, i) => (
-            <TableRow key={p.name} className="border-white/[0.04] transition-colors duration-150 hover:bg-white/[0.03]">
+            <TableRow key={p.name} className="border-border/60 transition-colors duration-150 hover:bg-muted/50">
               <TableCell className="text-xs font-medium text-muted-foreground/40">{i + 1}</TableCell>
               <TableCell className="text-sm font-medium">{p.name}</TableCell>
               <TableCell className="text-sm tabular-nums">{p.qty}</TableCell>

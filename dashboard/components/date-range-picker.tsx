@@ -54,16 +54,16 @@ export function DateRangePicker({ dateRange, onDateRangeChange }: DateRangePicke
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 rounded-lg bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all duration-200 text-xs font-medium cursor-pointer"
+            className="gap-2 rounded-lg bg-muted/60 border-border hover:bg-muted/80 hover:border-border transition-all duration-200 text-xs font-medium cursor-pointer"
           />
         }
       >
         <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
         {label}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-background/95 backdrop-blur-xl border-white/[0.08] shadow-2xl shadow-black/40" align="end">
+      <PopoverContent className="w-auto p-0 bg-background/95 backdrop-blur-xl border-border shadow-2xl shadow-black/40" align="end">
         <div className="flex">
-          <div className="border-r border-white/[0.06] p-2 space-y-0.5 min-w-[140px]">
+          <div className="border-r border-border p-2 space-y-0.5 min-w-[140px]">
             {presets.map((preset) => (
               <Button
                 key={preset.label}

@@ -17,7 +17,7 @@ const options: { value: Channel; label: string }[] = [
 
 export function ChannelToggle({ value, onChange }: ChannelToggleProps) {
   return (
-    <div className="flex rounded-lg bg-white/[0.04] p-0.5 border border-white/[0.06]">
+    <div className="flex rounded-lg bg-muted/60 p-0.5 border border-border">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -26,7 +26,7 @@ export function ChannelToggle({ value, onChange }: ChannelToggleProps) {
             'relative rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer',
             value === opt.value
               ? 'bg-acai/20 text-acai shadow-sm'
-              : 'text-muted-foreground/70 hover:text-foreground hover:bg-white/[0.04]',
+              : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/60',
           )}
           onClick={() => onChange(opt.value)}
         >

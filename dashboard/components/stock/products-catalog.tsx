@@ -118,12 +118,12 @@ export function ProductsCatalog() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            className="h-8 bg-transparent border-white/[0.08] focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40 text-sm"
+            className="h-8 bg-transparent border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40 text-sm"
           />
           <select
             value={newUnit}
             onChange={(e) => setNewUnit(e.target.value)}
-            className="h-8 rounded-md bg-white/[0.03] border border-white/[0.08] px-2 text-xs text-muted-foreground"
+            className="h-8 rounded-md bg-muted/50 border border-border px-2 text-xs text-muted-foreground"
           >
             {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -143,7 +143,7 @@ export function ProductsCatalog() {
             placeholder="Buscar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-full bg-white/[0.03] border-white/[0.08] focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40 text-sm"
+            className="pl-9 h-full bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40 text-sm"
           />
         </div>
       </div>
@@ -162,7 +162,7 @@ export function ProductsCatalog() {
         <div className="glass-card rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="w-12 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">ID</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Produto</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Categoria</TableHead>
@@ -180,7 +180,7 @@ export function ProductsCatalog() {
                 const stock = Number(p.currentStock) || 0;
                 const min = p.minStock ? Number(p.minStock) : null;
                 return (
-                  <TableRow key={p.id} className="border-white/[0.04] hover:bg-white/[0.03]">
+                  <TableRow key={p.id} className="border-border/60 hover:bg-muted/50">
                     <TableCell className="font-mono text-xs text-muted-foreground/40">{p.id}</TableCell>
                     <TableCell>
                       {isEditing ? (
@@ -188,14 +188,14 @@ export function ProductsCatalog() {
                           <Input
                             value={editForm.name}
                             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="h-7 text-sm bg-white/[0.05] border-acai/30"
+                            className="h-7 text-sm bg-muted/70 border-acai/30"
                             autoFocus
                           />
                           <Input
                             value={editForm.aliases}
                             onChange={(e) => setEditForm({ ...editForm, aliases: e.target.value })}
                             placeholder="aliases..."
-                            className="h-6 text-[11px] bg-white/[0.05] border-acai/30 placeholder:text-muted-foreground/30"
+                            className="h-6 text-[11px] bg-muted/70 border-acai/30 placeholder:text-muted-foreground/30"
                           />
                         </div>
                       ) : (
@@ -210,7 +210,7 @@ export function ProductsCatalog() {
                         <select
                           value={editForm.category}
                           onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                          className="h-7 rounded-md bg-white/[0.05] border border-acai/30 px-1.5 text-xs"
+                          className="h-7 rounded-md bg-muted/70 border border-acai/30 px-1.5 text-xs"
                         >
                           {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
@@ -226,7 +226,7 @@ export function ProductsCatalog() {
                           value={editForm.minStock}
                           onChange={(e) => setEditForm({ ...editForm, minStock: e.target.value })}
                           placeholder="mín..."
-                          className="h-7 w-20 text-xs bg-white/[0.05] border-acai/30"
+                          className="h-7 w-20 text-xs bg-muted/70 border-acai/30"
                         />
                       ) : (
                         <Badge className={cn('text-[10px] font-mono', stockBg(stock, min))}>
@@ -242,7 +242,7 @@ export function ProductsCatalog() {
                           value={editForm.costPerUnit}
                           onChange={(e) => setEditForm({ ...editForm, costPerUnit: e.target.value })}
                           placeholder="R$"
-                          className="h-7 w-20 text-xs bg-white/[0.05] border-acai/30"
+                          className="h-7 w-20 text-xs bg-muted/70 border-acai/30"
                         />
                       ) : (
                         <span className="text-xs text-muted-foreground/50">
@@ -256,7 +256,7 @@ export function ProductsCatalog() {
                           value={editForm.unitWeightG}
                           onChange={(e) => setEditForm({ ...editForm, unitWeightG: e.target.value })}
                           placeholder="g"
-                          className="h-7 w-20 text-xs bg-white/[0.05] border-acai/30"
+                          className="h-7 w-20 text-xs bg-muted/70 border-acai/30"
                         />
                       ) : (
                         <span className="text-xs text-muted-foreground/50">
@@ -269,7 +269,7 @@ export function ProductsCatalog() {
                         <select
                           value={editForm.defaultUnit}
                           onChange={(e) => setEditForm({ ...editForm, defaultUnit: e.target.value })}
-                          className="h-7 rounded-md bg-white/[0.05] border border-acai/30 px-1.5 text-xs"
+                          className="h-7 rounded-md bg-muted/70 border border-acai/30 px-1.5 text-xs"
                         >
                           {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
@@ -303,7 +303,7 @@ export function ProductsCatalog() {
                           </>
                         ) : (
                           <>
-                            <button onClick={() => startEdit(p)} className="p-1 rounded-md hover:bg-white/[0.06] text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+                            <button onClick={() => startEdit(p)} className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => { setMergeSource(p); setMergeTargetId(''); }} className="p-1 rounded-md hover:bg-acai/15 text-muted-foreground/40 hover:text-acai transition-colors">
@@ -328,7 +328,7 @@ export function ProductsCatalog() {
 
       {/* Merge Dialog */}
       <Dialog open={!!mergeSource} onOpenChange={(open) => !open && setMergeSource(null)}>
-        <DialogContent className="bg-background border-white/[0.08]">
+        <DialogContent className="bg-background border-border">
           <DialogHeader>
             <DialogTitle>Merge de Produtos</DialogTitle>
           </DialogHeader>
@@ -339,7 +339,7 @@ export function ProductsCatalog() {
             <select
               value={mergeTargetId}
               onChange={(e) => setMergeTargetId(e.target.value)}
-              className="w-full h-9 rounded-md bg-white/[0.03] border border-white/[0.08] px-3 text-sm"
+              className="w-full h-9 rounded-md bg-muted/50 border border-border px-3 text-sm"
             >
               <option value="">Selecione o produto destino...</option>
               {products

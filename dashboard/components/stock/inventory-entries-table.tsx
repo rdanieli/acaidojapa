@@ -108,7 +108,7 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
       <div className="glass-card rounded-xl overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-white/[0.06] hover:bg-transparent">
+            <TableRow className="border-border hover:bg-transparent">
               <TableHead className="w-8" />
               <TableHead className="w-16 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
                 #
@@ -150,8 +150,8 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
                 <TableRow
                   key={entry.id}
                   className={cn(
-                    'border-white/[0.04] transition-colors duration-150 cursor-pointer',
-                    isExpanded ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]'
+                    'border-border/60 transition-colors duration-150 cursor-pointer',
+                    isExpanded ? 'bg-muted/60' : 'hover:bg-muted/50'
                   )}
                   onClick={() => setExpandedId(isExpanded ? null : entry.id)}
                 >
@@ -231,7 +231,7 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
             </p>
             <Table>
               <TableHeader>
-                <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
                     Produto
                   </TableHead>
@@ -251,7 +251,7 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
               </TableHeader>
               <TableBody>
                 {entry.items.map((item) => (
-                  <TableRow key={item.id} className="border-white/[0.04] hover:bg-white/[0.03]">
+                  <TableRow key={item.id} className="border-border/60 hover:bg-muted/50">
                     <TableCell className="text-sm font-medium">{item.productName}</TableCell>
                     <TableCell className="text-right text-sm tabular-nums">
                       {parseFloat(item.quantity)}
@@ -268,7 +268,7 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
               </TableBody>
             </Table>
             {entry.rawText && (
-              <div className="mt-3 rounded-lg bg-white/[0.03] p-3">
+              <div className="mt-3 rounded-lg bg-muted/50 p-3">
                 <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider mb-1">
                   Texto original
                 </p>

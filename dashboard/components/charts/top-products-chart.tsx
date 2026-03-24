@@ -37,7 +37,7 @@ export function TopProductsChart({ data, loading }: TopProductsChartProps) {
             <p className="text-[10px] text-muted-foreground/60">Produtos mais vendidos</p>
           </div>
         </div>
-        <div className="flex rounded-lg bg-white/[0.04] p-0.5 border border-white/[0.06]">
+        <div className="flex rounded-lg bg-muted/60 p-0.5 border border-border">
           <button
             type="button"
             className={cn(

@@ -132,19 +132,19 @@ export default function FichasTecnicasPage() {
           placeholder="Nome do produto..."
           value={newForm.name}
           onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
-          className="h-8 flex-1 min-w-40 bg-transparent border-white/[0.08] focus:border-acai/40 text-sm"
+          className="h-8 flex-1 min-w-40 bg-transparent border-border focus:border-acai/40 text-sm"
         />
         <Input
           placeholder="ml"
           value={newForm.sizeMl}
           onChange={(e) => setNewForm({ ...newForm, sizeMl: e.target.value })}
-          className="h-8 w-20 bg-transparent border-white/[0.08] text-sm"
+          className="h-8 w-20 bg-transparent border-border text-sm"
           type="number"
         />
         <select
           value={newForm.category}
           onChange={(e) => setNewForm({ ...newForm, category: e.target.value })}
-          className="h-8 rounded-md bg-white/[0.03] border border-white/[0.08] px-2 text-xs text-muted-foreground"
+          className="h-8 rounded-md bg-muted/50 border border-border px-2 text-xs text-muted-foreground"
         >
           <option value="acai">Açaí</option>
           <option value="suco">Suco</option>
@@ -155,7 +155,7 @@ export default function FichasTecnicasPage() {
           placeholder="Preço R$"
           value={newForm.price}
           onChange={(e) => setNewForm({ ...newForm, price: e.target.value })}
-          className="h-8 w-24 bg-transparent border-white/[0.08] text-sm"
+          className="h-8 w-24 bg-transparent border-border text-sm"
           type="number"
         />
         <Button
@@ -177,17 +177,17 @@ export default function FichasTecnicasPage() {
             <div
               key={sp.id}
               className={cn(
-                'glass-card rounded-xl p-4 cursor-pointer transition-all hover:bg-white/[0.04]',
+                'glass-card rounded-xl p-4 cursor-pointer transition-all hover:bg-muted/60',
                 !sp.active && 'opacity-50'
               )}
               onClick={() => !isEditingSp && openRecipe(sp)}
             >
               {isEditingSp ? (
                 <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                  <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="h-7 text-sm bg-white/[0.05] border-acai/30" />
+                  <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="h-7 text-sm bg-muted/70 border-acai/30" />
                   <div className="flex gap-2">
-                    <Input value={editForm.sizeMl} onChange={(e) => setEditForm({ ...editForm, sizeMl: e.target.value })} placeholder="ml" className="h-7 w-20 text-xs bg-white/[0.05] border-acai/30" />
-                    <Input value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="R$" className="h-7 w-20 text-xs bg-white/[0.05] border-acai/30" />
+                    <Input value={editForm.sizeMl} onChange={(e) => setEditForm({ ...editForm, sizeMl: e.target.value })} placeholder="ml" className="h-7 w-20 text-xs bg-muted/70 border-acai/30" />
+                    <Input value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="R$" className="h-7 w-20 text-xs bg-muted/70 border-acai/30" />
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => {
@@ -214,14 +214,14 @@ export default function FichasTecnicasPage() {
                       <h3 className="text-sm font-semibold">{sp.name}</h3>
                       <div className="flex gap-2 mt-1">
                         {sp.sizeMl && <Badge className="text-[10px] bg-acai/15 text-acai border-acai/20">{sp.sizeMl}ml</Badge>}
-                        {sp.category && <Badge className="text-[10px] bg-white/[0.06] text-muted-foreground/60 border-white/[0.08]">{sp.category}</Badge>}
+                        {sp.category && <Badge className="text-[10px] bg-muted/80 text-muted-foreground/60 border-border">{sp.category}</Badge>}
                       </div>
                     </div>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => {
                         setEditingId(sp.id);
                         setEditForm({ name: sp.name, sizeMl: sp.sizeMl?.toString() || '', category: sp.category || '', price: sp.price || '' });
-                      }} className="p-1 rounded-md hover:bg-white/[0.06] text-muted-foreground/40">
+                      }} className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40">
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button onClick={() => deleteSoldProduct.mutate(sp.id)} className="p-1 rounded-md hover:bg-destructive/15 text-muted-foreground/40 hover:text-destructive">
@@ -249,7 +249,7 @@ export default function FichasTecnicasPage() {
 
       {/* Recipe Sheet */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
-        <SheetContent className="w-full sm:max-w-lg bg-background border-white/[0.08] overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-lg bg-background border-border overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{selectedProduct?.name || 'Receita'}</SheetTitle>
           </SheetHeader>
@@ -272,7 +272,7 @@ export default function FichasTecnicasPage() {
             {/* Recipe items */}
             <Table>
               <TableHeader>
-                <TableRow className="border-white/[0.06]">
+                <TableRow className="border-border">
                   <TableHead className="text-[10px] uppercase text-muted-foreground/50">Insumo</TableHead>
                   <TableHead className="text-[10px] uppercase text-muted-foreground/50 w-24">Qtd (g)</TableHead>
                   <TableHead className="text-[10px] uppercase text-muted-foreground/50 w-16">Base</TableHead>
@@ -281,12 +281,12 @@ export default function FichasTecnicasPage() {
               </TableHeader>
               <TableBody>
                 {recipeItems.map((item, idx) => (
-                  <TableRow key={idx} className="border-white/[0.04]">
+                  <TableRow key={idx} className="border-border/60">
                     <TableCell>
                       <select
                         value={item.productId}
                         onChange={(e) => updateRecipeItem(idx, 'productId', Number(e.target.value))}
-                        className="w-full h-8 rounded-md bg-white/[0.03] border border-white/[0.08] px-2 text-xs"
+                        className="w-full h-8 rounded-md bg-muted/50 border border-border px-2 text-xs"
                       >
                         <option value={0}>Selecione...</option>
                         {catalogProducts.map((p: any) => (
@@ -299,7 +299,7 @@ export default function FichasTecnicasPage() {
                         value={item.quantityG || ''}
                         onChange={(e) => updateRecipeItem(idx, 'quantityG', Number(e.target.value) || 0)}
                         type="number"
-                        className="h-8 text-xs bg-white/[0.03] border-white/[0.08]"
+                        className="h-8 text-xs bg-muted/50 border-border"
                       />
                     </TableCell>
                     <TableCell>

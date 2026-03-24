@@ -20,7 +20,7 @@ export function OrderDetailSheet({ order, open, onClose }: OrderDetailSheetProps
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="overflow-y-auto bg-background/95 backdrop-blur-xl border-white/[0.06]">
+      <SheetContent className="overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2 text-lg font-bold tracking-tight">
             Pedido #{order.displayId}
@@ -40,26 +40,26 @@ export function OrderDetailSheet({ order, open, onClose }: OrderDetailSheetProps
               { label: 'Tipo', value: order.orderType },
               { label: 'Status', value: order.status === 'canceled' ? 'Cancelado' : 'Concluído' },
             ].map(({ label, value }) => (
-              <div key={label} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+              <div key={label} className="rounded-xl bg-muted/50 border border-border p-3">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">{label}</p>
                 <p className="mt-0.5 text-sm font-semibold capitalize">{value}</p>
               </div>
             ))}
             {order.salesChannel && (
-              <div className="col-span-2 rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+              <div className="col-span-2 rounded-xl bg-muted/50 border border-border p-3">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">Canal de venda</p>
                 <p className="mt-0.5 text-sm font-semibold">{order.salesChannel}</p>
               </div>
             )}
           </div>
 
-          <Separator className="bg-white/[0.06]" />
+          <Separator className="bg-muted/80" />
 
           <div>
             <h4 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Itens</h4>
             <div className="space-y-2">
               {order.items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2.5">
+                <div key={i} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border/60 px-3 py-2.5">
                   <div>
                     <p className="text-sm font-medium">{item.name}</p>
                     <p className="text-[11px] text-muted-foreground/60">
@@ -72,7 +72,7 @@ export function OrderDetailSheet({ order, open, onClose }: OrderDetailSheetProps
             </div>
           </div>
 
-          <Separator className="bg-white/[0.06]" />
+          <Separator className="bg-muted/80" />
 
           <div>
             <h4 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Pagamentos</h4>

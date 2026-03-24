@@ -48,7 +48,7 @@ export function DailyStockRuns() {
             type="date"
             value={dateInput}
             onChange={e => setDateInput(e.target.value)}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
           />
           <Button
             size="sm"
@@ -102,7 +102,7 @@ export function DailyStockRuns() {
               </thead>
               <tbody>
                 {runs.map((run: any) => (
-                  <tr key={run.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                  <tr key={run.id} className="border-b border-white/5 hover:bg-muted/30">
                     <td className="px-3 py-2 font-mono">{formatDate(run.date)}</td>
                     <td className="px-3 py-2"><StatusBadge status={run.status} /></td>
                     <td className="px-3 py-2">{run.ordersFetched}</td>
@@ -154,7 +154,7 @@ function AliasesSection() {
             value={newAlias}
             onChange={e => setNewAlias(e.target.value)}
             placeholder="ex: acai 500ml c/ morango"
-            className="w-full mt-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm"
+            className="w-full mt-1 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
           />
         </div>
         <div className="w-48">
@@ -162,7 +162,7 @@ function AliasesSection() {
           <select
             value={newSoldProductId}
             onChange={e => setNewSoldProductId(e.target.value)}
-            className="w-full mt-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm"
+            className="w-full mt-1 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
           >
             <option value="">Selecionar...</option>
             {soldProductsList.map((sp: any) => (
@@ -204,11 +204,11 @@ function AliasesSection() {
             </thead>
             <tbody>
               {aliases.map((a: any) => (
-                <tr key={a.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                <tr key={a.id} className="border-b border-white/5 hover:bg-muted/30">
                   <td className="px-3 py-1.5 font-mono text-xs">{a.alias}</td>
                   <td className="px-3 py-1.5">{a.soldProductName || `#${a.soldProductId}`}</td>
                   <td className="px-3 py-1.5">
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${a.source === 'manual' ? 'bg-blue-500/15 text-blue-400' : 'bg-white/5 text-muted-foreground'}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${a.source === 'manual' ? 'bg-blue-500/15 text-blue-400' : 'bg-muted/50 text-muted-foreground'}`}>
                       {a.source}
                     </span>
                   </td>

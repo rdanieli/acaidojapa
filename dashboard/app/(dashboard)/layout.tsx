@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="relative z-10 md:pl-60">
           {/* Premium Topbar */}
-          <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+          <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3 md:px-6">
               <div className="flex items-center gap-3">
                 <div className="hidden md:block">

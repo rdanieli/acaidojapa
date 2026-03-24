@@ -104,7 +104,7 @@ export default function DashboardPage() {
               <table className="w-full">
                 <tbody>
                   {stockSummary.criticalProducts.map((p: any) => (
-                    <tr key={p.id} className="border-b border-white/[0.04] last:border-0">
+                    <tr key={p.id} className="border-b border-border/60 last:border-0">
                       <td className="px-4 py-2 text-sm">{p.name}</td>
                       <td className="px-4 py-2 text-right">
                         <span className={cn(

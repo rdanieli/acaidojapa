@@ -193,7 +193,7 @@ export function WhatsAppConnection() {
               variant="outline"
               size="sm"
               onClick={refreshQr}
-              className="border-white/10"
+              className="border-border"
             >
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               Atualizar QR
@@ -202,7 +202,7 @@ export function WhatsAppConnection() {
               variant="outline"
               size="sm"
               onClick={() => { setQrCode(null); setPolling(false); }}
-              className="border-white/10"
+              className="border-border"
             >
               Cancelar
             </Button>

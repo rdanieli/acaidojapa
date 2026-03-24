@@ -28,7 +28,7 @@ export default function PedidosPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          <span className="rounded-lg bg-muted/60 border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
             {orders.length} pedidos
           </span>
         </div>

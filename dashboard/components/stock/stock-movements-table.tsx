@@ -68,7 +68,7 @@ export function StockMovementsTable() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="h-9 rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 text-xs text-muted-foreground"
+          className="h-9 rounded-xl bg-muted/50 border border-border px-3 text-xs text-muted-foreground"
         >
           <option value="">Todos os tipos</option>
           {Object.entries(TYPE_CONFIG).map(([key, { label }]) => (
@@ -78,7 +78,7 @@ export function StockMovementsTable() {
         <select
           value={filterProductId}
           onChange={(e) => setFilterProductId(e.target.value)}
-          className="h-9 rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 text-xs text-muted-foreground"
+          className="h-9 rounded-xl bg-muted/50 border border-border px-3 text-xs text-muted-foreground"
         >
           <option value="">Todos os produtos</option>
           {catalogProducts.filter((p: any) => p.active).map((p: any) => (
@@ -104,7 +104,7 @@ export function StockMovementsTable() {
         <div className="glass-card rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Data</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Tipo</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Produto</TableHead>
@@ -117,7 +117,7 @@ export function StockMovementsTable() {
               {movements.map((m: any) => {
                 const config = TYPE_CONFIG[m.type] || TYPE_CONFIG.ajuste;
                 return (
-                  <TableRow key={m.id} className="border-white/[0.04] hover:bg-white/[0.03]">
+                  <TableRow key={m.id} className="border-border/60 hover:bg-muted/50">
                     <TableCell className="text-xs text-muted-foreground/60">
                       {new Date(m.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </TableCell>
@@ -142,7 +142,7 @@ export function StockMovementsTable() {
 
       {/* Add Movement Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="bg-background border-white/[0.08]">
+        <DialogContent className="bg-background border-border">
           <DialogHeader>
             <DialogTitle>Nova Movimentação</DialogTitle>
           </DialogHeader>
@@ -150,7 +150,7 @@ export function StockMovementsTable() {
             <select
               value={addForm.productId}
               onChange={(e) => setAddForm({ ...addForm, productId: e.target.value })}
-              className="w-full h-9 rounded-md bg-white/[0.03] border border-white/[0.08] px-3 text-sm"
+              className="w-full h-9 rounded-md bg-muted/50 border border-border px-3 text-sm"
             >
               <option value="">Selecione o produto...</option>
               {catalogProducts.filter((p: any) => p.active).map((p: any) => (
@@ -161,7 +161,7 @@ export function StockMovementsTable() {
               <select
                 value={addForm.type}
                 onChange={(e) => setAddForm({ ...addForm, type: e.target.value })}
-                className="h-9 rounded-md bg-white/[0.03] border border-white/[0.08] px-3 text-sm flex-1"
+                className="h-9 rounded-md bg-muted/50 border border-border px-3 text-sm flex-1"
               >
                 <option value="entrada">Entrada</option>
                 <option value="saida_manual">Saída Manual</option>
@@ -172,12 +172,12 @@ export function StockMovementsTable() {
                 onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
                 placeholder="Qtd"
                 type="number"
-                className="h-9 w-24 bg-white/[0.03] border-white/[0.08]"
+                className="h-9 w-24 bg-muted/50 border-border"
               />
               <select
                 value={addForm.unit}
                 onChange={(e) => setAddForm({ ...addForm, unit: e.target.value })}
-                className="h-9 w-20 rounded-md bg-white/[0.03] border border-white/[0.08] px-2 text-sm"
+                className="h-9 w-20 rounded-md bg-muted/50 border border-border px-2 text-sm"
               >
                 {['un', 'kg', 'L', 'cx', 'pct', 'sc', 'g', 'ml'].map((u) => (
                   <option key={u} value={u}>{u}</option>
@@ -188,7 +188,7 @@ export function StockMovementsTable() {
               value={addForm.notes}
               onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
               placeholder="Observações (opcional)"
-              className="h-9 bg-white/[0.03] border-white/[0.08]"
+              className="h-9 bg-muted/50 border-border"
             />
           </div>
           <DialogFooter>
