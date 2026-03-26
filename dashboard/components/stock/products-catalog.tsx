@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useProductsCatalog, useUpdateProduct, useAddProduct, useDeleteProduct, useMergeProducts } from '@/hooks/use-dashboard';
+import React, { useState, useEffect } from 'react';
+import { useProductsCatalog, useUpdateProduct, useAddProduct, useDeleteProduct, useMergeProducts, useComplementGramages, useUpdateComplementGramages } from '@/hooks/use-dashboard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,74 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, Pencil, Check, X, Search, ShoppingBasket, Merge } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X, Search, ShoppingBasket, Merge, ChevronDown, ChevronRight, Scale } from 'lucide-react';
+
+const SIZE_TIERS = [
+  { value: 'small', label: '200ml', color: 'text-blue-400' },
+  { value: 'medium', label: '300-400ml', color: 'text-amber-400' },
+  { value: 'large', label: '500-700ml', color: 'text-emerald-400' },
+];
+
+function GramagesEditor({ productId }: { productId: number }) {
+  const { data, isLoading } = useComplementGramages(productId);
+  const updateGramages = useUpdateComplementGramages();
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState(false);
+
+  const gramages = data?.gramages ?? [];
+
+  useEffect(() => {
+    if (gramages.length === 0 && !data) return;
+    const newForm: Record<string, string> = {};
+    for (const tier of SIZE_TIERS) {
+      const existing = gramages.find((g: any) => g.sizeTier === tier.value);
+      newForm[tier.value] = existing ? String(Number(existing.quantityG)) : '';
+    }
+    setForm(newForm);
+    setDirty(false);
+  }, [data]);
+
+  const handleSave = () => {
+    const gramagesPayload = SIZE_TIERS.map(t => ({
+      sizeTier: t.value,
+      quantityG: form[t.value] ? Number(form[t.value]) : 0,
+    }));
+    updateGramages.mutate({ productId, gramages: gramagesPayload });
+    setDirty(false);
+  };
+
+  if (isLoading) return <div className="py-2 px-4 text-xs text-muted-foreground/40">Carregando...</div>;
+
+  return (
+    <div className="py-2 px-4 flex items-center gap-4">
+      <Scale className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/40 shrink-0">Gramagens:</span>
+      {SIZE_TIERS.map(tier => (
+        <div key={tier.value} className="flex items-center gap-1.5">
+          <span className={cn('text-[11px] font-medium', tier.color)}>{tier.label}</span>
+          <Input
+            value={form[tier.value] ?? ''}
+            onChange={(e) => { setForm({ ...form, [tier.value]: e.target.value }); setDirty(true); }}
+            placeholder="0"
+            className="h-7 w-16 text-xs text-center bg-muted/70 border-border"
+          />
+          <span className="text-[10px] text-muted-foreground/40">g</span>
+        </div>
+      ))}
+      {dirty && (
+        <Button
+          onClick={handleSave}
+          disabled={updateGramages.isPending}
+          size="sm"
+          className="h-7 bg-acai hover:bg-acai/80 text-white text-xs px-3"
+        >
+          <Check className="h-3 w-3 mr-1" />
+          Salvar
+        </Button>
+      )}
+    </div>
+  );
+}
 
 const CATEGORIES = [
   { value: '', label: 'Sem categoria' },
@@ -49,6 +116,7 @@ export function ProductsCatalog() {
   const [newUnit, setNewUnit] = useState('un');
   const [mergeSource, setMergeSource] = useState<any>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
+  const [expandedGramages, setExpandedGramages] = useState<number | null>(null);
 
   const products = data?.products ?? [];
   const filtered = products.filter((p: any) => {
@@ -179,9 +247,22 @@ export function ProductsCatalog() {
                 const isEditing = editingId === p.id;
                 const stock = Number(p.currentStock) || 0;
                 const min = p.minStock ? Number(p.minStock) : null;
+                const isComplement = p.category === 'complemento';
+                const isExpanded = expandedGramages === p.id;
                 return (
-                  <TableRow key={p.id} className="border-border/60 hover:bg-muted/50">
-                    <TableCell className="font-mono text-xs text-muted-foreground/40">{p.id}</TableCell>
+                  <React.Fragment key={p.id}>
+                  <TableRow className="border-border/60 hover:bg-muted/50">
+                    <TableCell className="font-mono text-xs text-muted-foreground/40">
+                      {isComplement ? (
+                        <button
+                          onClick={() => setExpandedGramages(isExpanded ? null : p.id)}
+                          className="flex items-center gap-0.5 text-muted-foreground/40 hover:text-acai transition-colors"
+                        >
+                          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          {p.id}
+                        </button>
+                      ) : p.id}
+                    </TableCell>
                     <TableCell>
                       {isEditing ? (
                         <div className="space-y-1">
@@ -317,6 +398,14 @@ export function ProductsCatalog() {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {isComplement && isExpanded && (
+                    <TableRow className="border-border/60 bg-muted/30">
+                      <TableCell colSpan={9} className="py-0">
+                        <GramagesEditor productId={p.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </TableBody>

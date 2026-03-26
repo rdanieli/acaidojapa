@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   '/api/dashboard/stock/seed-complements',
   '/api/dashboard/stock/seed-revenda-milkshake',
   '/api/dashboard/orders/sync',
+  '/api/dashboard/stock/shopping-list',
 ];
 
 export async function middleware(request: NextRequest) {

@@ -680,6 +680,61 @@ export function usePurchases(start: Date, end: Date) {
   });
 }
 
+// --- Complement Gramages ---
+export function useComplementGramages(productId: number | null) {
+  return useQuery<{ gramages: any[] }>({
+    queryKey: ['complement-gramages', productId],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/complement-gramages?productId=${productId}`);
+      if (!res.ok) throw new Error('Failed to fetch gramages');
+      return res.json();
+    },
+    enabled: !!productId,
+  });
+}
+
+export function useUpdateComplementGramages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { productId: number; gramages: { sizeTier: string; quantityG: number }[] }) => {
+      const res = await fetch('/api/dashboard/complement-gramages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update gramages');
+      return res.json();
+    },
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ['complement-gramages', vars.productId] }),
+  });
+}
+
+// --- Shopping List ---
+export function useShoppingList() {
+  return useQuery<{ suggestions: any[] }>({
+    queryKey: ['shopping-list'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/stock/shopping-list');
+      if (!res.ok) throw new Error('Failed to fetch shopping list');
+      return res.json();
+    },
+    enabled: false, // manual fetch only
+  });
+}
+
+export function useSendShoppingList() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/dashboard/stock/shopping-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to send shopping list');
+      return res.json();
+    },
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({
