@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { IceCreamCone, Loader2 } from 'lucide-react';
+import { Store, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center gap-3">
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl gradient-acai shadow-lg">
-              <IceCreamCone className="h-8 w-8 text-white" />
+              <Store className="h-8 w-8 text-white" />
               <div className="absolute inset-0 rounded-2xl bg-white/10" />
             </div>
             <div className="text-center">
