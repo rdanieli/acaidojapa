@@ -151,8 +151,41 @@ case "$1" in
     crontab -l | grep -E 'orders/sync|process-daily-sales'
     ;;
 
+  staging:up)
+    log "Starting staging services..."
+    docker compose -f docker-compose.staging.yml up -d
+    ok "Staging services running on port 3002"
+    docker compose -f docker-compose.staging.yml ps
+    ;;
+
+  staging:down)
+    log "Stopping staging services..."
+    docker compose -f docker-compose.staging.yml down
+    ok "Staging stopped"
+    ;;
+
+  staging:update)
+    log "Pulling latest staging image..."
+    docker compose -f docker-compose.staging.yml pull dashboard-staging
+    log "Restarting staging..."
+    docker compose -f docker-compose.staging.yml up -d dashboard-staging
+    ok "Staging updated"
+    ;;
+
+  staging:logs)
+    docker compose -f docker-compose.staging.yml logs -f dashboard-staging
+    ;;
+
+  staging:db:push)
+    log "Pushing schema to staging database..."
+    cd dashboard
+    DATABASE_URL="postgresql://acaidojapa:$(grep DB_PASSWORD ../.env | cut -d= -f2)@localhost:5434/acaidojapa_staging" npx drizzle-kit push
+    cd ..
+    ok "Staging schema pushed"
+    ;;
+
   *)
-    echo "Usage: ./deploy.sh {setup|up|down|update|logs|db:push|status|setup-cron}"
+    echo "Usage: ./deploy.sh {setup|up|down|update|logs|db:push|status|setup-cron|staging:up|staging:down|staging:update|staging:logs|staging:db:push}"
     exit 1
     ;;
 esac
