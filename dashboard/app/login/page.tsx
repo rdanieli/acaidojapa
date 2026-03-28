@@ -63,10 +63,10 @@ export default function LoginPage() {
             </div>
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight gradient-text">
-                Gestão Açaí
+                Tongo Gestão
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Estoque inteligente para sua açaiteria
+                Seu estoque mais inteligente
               </p>
             </div>
           </div>

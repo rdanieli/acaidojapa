@@ -15,8 +15,8 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Gestão Açaí — Estoque inteligente para sua açaiteria',
-  description: 'Plataforma de gestão de estoque, vendas e operações para açaiterias',
+  title: 'Tongo Gestão — Seu estoque mais inteligente',
+  description: 'Plataforma de gestão de estoque, vendas e operações para food service',
 };
 
 export default function RootLayout({

@@ -269,7 +269,7 @@ async function generateResponse(question: string, data: Record<string, string>, 
     messages: [
       {
         role: 'system',
-        content: `Você é o assistente da loja Açaí do Japa. Responda a pergunta com base nos dados abaixo.
+        content: `Você é o assistente de gestão da loja. Responda a pergunta com base nos dados abaixo.
 
 DATA DE HOJE: ${today}
 
