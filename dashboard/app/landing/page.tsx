@@ -14,13 +14,19 @@ import {
   Sparkles,
   Upload,
   BarChart3,
+  Image,
+  Mic,
+  Type,
+  Bot,
+  Bell,
+  Infinity,
 } from 'lucide-react';
 
 const features = [
   {
     icon: MessageSquare,
     title: 'Estoque via WhatsApp',
-    description: 'Envie foto, audio ou texto da nota e o estoque atualiza sozinho.',
+    description: 'Foto, áudio ou texto — manda pelo WhatsApp e a IA atualiza o estoque. Sem app, sem planilha.',
   },
   {
     icon: TrendingUp,
@@ -29,23 +35,23 @@ const features = [
   },
   {
     icon: BookOpen,
-    title: 'Fichas Tecnicas',
-    description: 'Cadastre receitas e o sistema calcula o custo por porcao.',
+    title: 'Fichas Técnicas',
+    description: 'Cadastre receitas e o sistema calcula o custo por porção.',
   },
   {
     icon: Trash2,
-    title: 'Controle de Desperdicios',
-    description: 'Registre perdas e acompanhe padroes para reduzir custos.',
+    title: 'Controle de Desperdícios',
+    description: 'Registre perdas e acompanhe padrões para reduzir custos.',
   },
   {
     icon: ClipboardCheck,
     title: 'Checklists Operacionais',
-    description: 'Crie checklists diarios para abertura, fechamento e limpeza.',
+    description: 'Crie checklists diários para abertura, fechamento e limpeza.',
   },
   {
     icon: ShoppingCart,
     title: 'Lista de Compras Inteligente',
-    description: 'Sugestao automatica de compras baseada no consumo semanal.',
+    description: 'Sugestão automática de compras baseada no consumo semanal.',
   },
 ];
 
@@ -54,7 +60,7 @@ const steps = [
     number: '1',
     icon: Sparkles,
     title: 'Cadastre seus produtos',
-    description: 'Adicione seus insumos, fornecedores e fichas tecnicas em poucos minutos.',
+    description: 'Adicione seus insumos, fornecedores e fichas técnicas em poucos minutos.',
   },
   {
     number: '2',
@@ -74,20 +80,20 @@ const plans = [
   {
     name: 'Gratuito',
     price: '0',
-    description: 'Para comecar a organizar seu estoque',
-    features: ['1 usuario', '100 movimentacoes/mes', 'Estoque basico'],
-    cta: 'Comecar gratis',
+    description: 'Para começar a organizar seu estoque',
+    features: ['1 usuário', '100 movimentações/mês', 'Estoque básico'],
+    cta: 'Começar grátis',
     highlighted: false,
   },
   {
     name: 'Starter',
     price: '89',
-    description: 'Para negocios em crescimento',
+    description: 'Para negócios em crescimento',
     features: [
-      '5 usuarios',
-      'Movimentacoes ilimitadas',
+      '5 usuários',
+      'Movimentações ilimitadas',
       'CMV em tempo real',
-      'Fichas Tecnicas',
+      'Fichas Técnicas',
       'WhatsApp integrado',
     ],
     cta: 'Assinar Starter',
@@ -96,14 +102,14 @@ const plans = [
   {
     name: 'Pro',
     price: '149',
-    description: 'Para operacoes completas',
+    description: 'Para operações completas',
     features: [
-      'Usuarios ilimitados',
+      'Usuários ilimitados',
       'Tudo do Starter',
       'Multi-unidade',
       'Checklists operacionais',
-      'Controle de desperdicios',
-      'Etiquetas automaticas',
+      'Controle de desperdícios',
+      'Etiquetas automáticas',
     ],
     cta: 'Assinar Pro',
     highlighted: false,
@@ -121,7 +127,7 @@ export default function LandingPage() {
               <Store className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight gradient-text">
-              Tongo Gestao
+              Tongo Gestão
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -135,7 +141,7 @@ export default function LandingPage() {
               href="/registro"
               className="rounded-xl gradient-acai px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:brightness-110 hover:shadow-lg hover:shadow-acai/20"
             >
-              Comecar gratis
+              Começar grátis
             </Link>
           </div>
         </div>
@@ -152,19 +158,19 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-acai/20 bg-acai/5 px-4 py-1.5 text-sm font-medium text-acai">
             <Sparkles className="h-4 w-4" />
-            Gestao inteligente para food service
+            Gestão inteligente para food service
           </div>
 
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
             Seu estoque mais inteligente.{' '}
             <span className="gradient-text">
-              Seu negocio mais lucrativo.
+              Seu negócio mais lucrativo.
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            A plataforma completa para gerenciar estoque, custos e operacoes do seu
-            restaurante, acaiteria ou hamburgueria. Tudo automatizado, tudo em um so lugar.
+            A plataforma completa para gerenciar estoque, custos e operações do seu
+            restaurante, açaiteria ou hamburgueria. Tudo automatizado, tudo em um só lugar.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -172,7 +178,7 @@ export default function LandingPage() {
               href="/registro"
               className="group inline-flex h-12 items-center gap-2 rounded-xl gradient-acai px-8 text-base font-semibold text-white shadow-lg transition-all hover:brightness-110 hover:shadow-xl hover:shadow-acai/25"
             >
-              Comecar gratis
+              Começar grátis
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
@@ -204,11 +210,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Tudo que voce precisa para{' '}
+              Tudo que você precisa para{' '}
               <span className="gradient-text">gerenciar seu negocio</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Ferramentas poderosas que automatizam o trabalho manual e te dao visao completa da operacao.
+              Ferramentas poderosas que automatizam o trabalho manual e te dão visão completa da operação.
             </p>
           </div>
 
@@ -233,16 +239,103 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* WhatsApp hero section */}
+      <section className="relative border-y border-border/50 bg-muted/20 py-20 sm:py-28 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-0 right-0 h-[400px] w-[400px] rounded-full bg-emerald-500/5 blur-[120px]" />
+          <div className="absolute bottom-0 left-0 h-[300px] w-[300px] rounded-full bg-acai/5 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-6">
+          <div className="mx-auto max-w-2xl text-center mb-14">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-sm font-medium text-emerald-500">
+              <MessageSquare className="h-4 w-4" />
+              Integração WhatsApp com IA
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Seu estoque atualiza{' '}
+              <span className="text-emerald-500">pelo WhatsApp</span>
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Sem app pra instalar. Sem planilha pra preencher. Manda pelo WhatsApp e a inteligência artificial faz o resto.
+            </p>
+          </div>
+
+          {/* WhatsApp input methods */}
+          <div className="grid gap-5 sm:grid-cols-3 mb-14">
+            <div className="glass-card rounded-2xl p-6 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+                <Image className="h-7 w-7 text-emerald-500" />
+              </div>
+              <h3 className="text-base font-semibold">Foto da nota fiscal</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Tire uma foto da nota do fornecedor. A IA extrai todos os itens, quantidades e preços automaticamente.
+              </p>
+            </div>
+            <div className="glass-card rounded-2xl p-6 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+                <Mic className="h-7 w-7 text-emerald-500" />
+              </div>
+              <h3 className="text-base font-semibold">Áudio de voz</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Grave um áudio dizendo o que chegou. "Chegaram 5 caixas de polpa e 3 pacotes de granola." Pronto.
+              </p>
+            </div>
+            <div className="glass-card rounded-2xl p-6 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+                <Type className="h-7 w-7 text-emerald-500" />
+              </div>
+              <h3 className="text-base font-semibold">Mensagem de texto</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Digite "5 cx açaí, 3 pct granola, 2 kg morango" e o estoque atualiza na hora.
+              </p>
+            </div>
+          </div>
+
+          {/* WhatsApp superpowers */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
+              <Bot className="h-5 w-5 text-acai shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold">Chat inteligente</h4>
+                <p className="text-xs text-muted-foreground mt-1">Pergunte "quanto vendeu ontem?" ou "qual o estoque de morango?" e receba a resposta no WhatsApp</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
+              <Bell className="h-5 w-5 text-acai shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold">Alertas automáticos</h4>
+                <p className="text-xs text-muted-foreground mt-1">Receba aviso quando estoque estiver baixo e sugestão de compras toda semana</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
+              <Check className="h-5 w-5 text-acai shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold">Confirmação inteligente</h4>
+                <p className="text-xs text-muted-foreground mt-1">O sistema mostra o que entendeu e pede confirmação antes de atualizar o estoque</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
+              <Infinity className="h-5 w-5 text-acai shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold">Sem limite de mensagens</h4>
+                <p className="text-xs text-muted-foreground mt-1">Diferente dos concorrentes que cobram por mensagem, aqui é ilimitado</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How it works */}
-      <section className="border-y border-border/50 bg-muted/20 py-20 sm:py-28">
+      <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-5xl px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Simples de comecar.{' '}
+              Simples de começar.{' '}
               <span className="gradient-text">Poderoso de usar.</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Em tres passos voce ja esta no controle total do seu estoque.
+              Em três passos você já está no controle total do seu estoque.
             </p>
           </div>
 
@@ -273,10 +366,10 @@ export default function LandingPage() {
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Planos que cabem no seu{' '}
-              <span className="gradient-text">orcamento</span>
+              <span className="gradient-text">orçamento</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Comece gratis e escale conforme seu negocio cresce.
+              Comece grátis e escale conforme seu negócio cresce.
             </p>
           </div>
 
@@ -350,7 +443,7 @@ export default function LandingPage() {
             <span className="gradient-text">agora</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Crie sua conta em segundos. Sem cartao de credito, sem complicacao.
+            Crie sua conta em segundos. Sem cartão de crédito, sem complicação.
           </p>
           <div className="mt-8">
             <Link
@@ -373,11 +466,11 @@ export default function LandingPage() {
                 <Store className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-semibold gradient-text">
-                Tongo Gestao
+                Tongo Gestão
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 Tongo Gestao. Todos os direitos reservados.
+              &copy; 2026 Tongo Gestão. Todos os direitos reservados.
             </p>
           </div>
         </div>
