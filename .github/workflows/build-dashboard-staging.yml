@@ -45,6 +45,18 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy staging compose to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.staging.yml"
+          target: "/opt/acaidojapa/"
+
       - name: Deploy staging to server
         uses: appleboy/ssh-action@v1
         with:
@@ -53,9 +65,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/acaidojapa
-            git fetch origin feat/saas
-            git checkout feat/saas || git checkout -b feat/saas origin/feat/saas
-            git pull origin feat/saas
             docker compose -f docker-compose.staging.yml pull dashboard-staging
-            docker compose -f docker-compose.staging.yml up -d
+            docker compose -f docker-compose.staging.yml up -d dashboard-staging
             docker image prune -f
