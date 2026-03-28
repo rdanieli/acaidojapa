@@ -2,7 +2,8 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { inventoryEntries, inventoryItems, products } from '@/lib/db/schema';
-import { and, gte, lte, eq, sql, inArray } from 'drizzle-orm';
+import { and, gte, lte, eq, inArray } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { tenantId } = await getTenantScope();
+
     // 1. Fetch confirmed inventory entries in the period
     const entries = await db
       .select()
@@ -23,6 +26,7 @@ export async function GET(request: NextRequest) {
           eq(inventoryEntries.status, 'confirmed'),
           gte(inventoryEntries.createdAt, new Date(start + 'T00:00:00')),
           lte(inventoryEntries.createdAt, new Date(end + 'T23:59:59')),
+          eq(inventoryEntries.tenantId, tenantId),
         ),
       );
 
@@ -46,7 +50,7 @@ export async function GET(request: NextRequest) {
       .where(inArray(inventoryItems.entryId, entryIds));
 
     // 3. Load products for category info
-    const productRows = await db.select().from(products);
+    const productRows = await db.select().from(products).where(eq(products.tenantId, tenantId));
     const productMap = new Map<number, typeof productRows[0]>();
     for (const p of productRows) {
       productMap.set(p.id, p);

@@ -3,7 +3,7 @@ import { products, complementGramages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 /**
- * Complement gramages by size tier from fichas técnicas.
+ * Complement gramages by size tier from fichas tecnicas.
  * [name, small (200ml), medium (300/400ml), large (500/700ml)]
  */
 const COMPLEMENT_DATA: [string, number, number, number][] = [
@@ -45,7 +45,7 @@ const COMPLEMENT_DATA: [string, number, number, number][] = [
   ['Uva',                  20,  80, 120],
 ];
 
-export async function seedComplementGramages() {
+export async function seedComplementGramages(tenantId: number) {
   let created = 0;
   let skipped = 0;
 
@@ -54,17 +54,18 @@ export async function seedComplementGramages() {
     let [product] = await db
       .select()
       .from(products)
-      .where(eq(products.name, name))
+      .where(and(eq(products.name, name), eq(products.tenantId, tenantId)))
       .limit(1);
 
     if (!product) {
       [product] = await db.insert(products).values({
+        tenantId,
         name,
         defaultUnit: 'g',
         category: 'complemento',
       }).returning();
     } else if (product.category !== 'complemento') {
-      await db.update(products).set({ category: 'complemento' }).where(eq(products.id, product.id));
+      await db.update(products).set({ category: 'complemento' }).where(and(eq(products.id, product.id), eq(products.tenantId, tenantId)));
     }
 
     // Insert gramages for each tier (skip if already exists)
@@ -76,6 +77,7 @@ export async function seedComplementGramages() {
           and(
             eq(complementGramages.productId, product.id),
             eq(complementGramages.sizeTier, tier),
+            eq(complementGramages.tenantId, tenantId),
           )
         )
         .limit(1);
@@ -86,6 +88,7 @@ export async function seedComplementGramages() {
       }
 
       await db.insert(complementGramages).values({
+        tenantId,
         productId: product.id,
         sizeTier: tier,
         quantityG: String(qty),

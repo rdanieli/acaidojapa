@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from '@/lib/db';
 import { products } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 // --- PDV modifier mapping (fetched from Tablet Cloud API) ---
 
@@ -61,23 +61,25 @@ async function loadPdvModifiers(): Promise<Map<number, string>> {
 export function clearComplementCaches() {
   pdvModifierCache = null;
   complementNameCache = null;
+  complementNameCacheTenantId = null;
 }
 
-// --- Complement name → product ID mapping ---
+// --- Complement name -> product ID mapping ---
 
 let complementNameCache: Map<string, number> | null = null;
+let complementNameCacheTenantId: number | null = null;
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-async function loadComplementNameMap(): Promise<Map<string, number>> {
-  if (complementNameCache) return complementNameCache;
+async function loadComplementNameMap(tenantId: number): Promise<Map<string, number>> {
+  if (complementNameCache && complementNameCacheTenantId === tenantId) return complementNameCache;
 
   const complements = await db
     .select({ id: products.id, name: products.name, aliases: products.aliases })
     .from(products)
-    .where(eq(products.category, 'complemento'));
+    .where(and(eq(products.category, 'complemento'), eq(products.tenantId, tenantId)));
 
   complementNameCache = new Map();
   for (const c of complements) {
@@ -89,6 +91,7 @@ async function loadComplementNameMap(): Promise<Map<string, number>> {
       }
     }
   }
+  complementNameCacheTenantId = tenantId;
   return complementNameCache;
 }
 
@@ -101,7 +104,7 @@ function matchName(name: string, cache: Map<string, number>): number | null {
   return null;
 }
 
-// --- Complement groups to include (Cardápio Web) ---
+// --- Complement groups to include (Cardapio Web) ---
 const COMPLEMENT_GROUPS = new Set(['escolha os complementos', 'adicionais']);
 
 /**
@@ -110,20 +113,22 @@ const COMPLEMENT_GROUPS = new Set(['escolha os complementos', 'adicionais']);
  * @param rawData - The order's raw_data JSON
  * @param channel - 'pdv' or 'online'
  * @param itemIndex - Index of the item in the normalized items array
- *                    (matches the iteration order from normalizePdvCupom/normalizeCwOrder)
+ * @param tenantId - Tenant ID for scoping product lookups
  */
 export async function getComplementsForItem(
   rawData: any,
   channel: 'pdv' | 'online',
   itemIndex: number,
+  tenantId?: number,
 ): Promise<{ complementProductIds: number[]; unmatchedNames: string[] }> {
   if (!rawData) return { complementProductIds: [], unmatchedNames: [] };
 
-  const nameMap = await loadComplementNameMap();
+  const tid = tenantId ?? 1;
+  const nameMap = await loadComplementNameMap(tid);
   const complementNames: string[] = [];
 
   if (channel === 'online') {
-    // Cardápio Web: items[itemIndex].options[]
+    // Cardapio Web: items[itemIndex].options[]
     const items = rawData.items || [];
     const item = items[itemIndex];
     if (item?.options) {

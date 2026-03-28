@@ -3,7 +3,9 @@ import { jwtVerify } from 'jose';
 
 const PUBLIC_PATHS = [
   '/login',
+  '/registro',
   '/api/auth/login',
+  '/api/auth/register',
   '/api/webhook',
   // Cron-callable paths (auth checked in route handler via CRON_SECRET)
   '/api/dashboard/stock/process-daily-sales',

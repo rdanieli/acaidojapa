@@ -8,7 +8,7 @@ import { checkAndCreateAlerts } from '@/lib/stock/check-alerts';
 const CONFIRM_WORDS = ['ok', 'sim', 'confirma', 'confirmar', 'confirmado', 'certo'];
 const REJECT_WORDS = ['cancelar', 'cancela', 'nao', 'não', 'n', 'errado'];
 
-export async function handleConfirmation(phone: string, text: string): Promise<boolean> {
+export async function handleConfirmation(phone: string, text: string, tenantId?: number): Promise<boolean> {
   const normalized = text.trim().toLowerCase();
 
   const isConfirm = CONFIRM_WORDS.some((w) => normalized === w || normalized.startsWith(w));
@@ -17,15 +17,16 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
   if (!isConfirm && !isReject) return false;
 
   // Find latest pending entry from this phone
+  const pendingConditions = [
+    eq(inventoryEntries.senderPhone, phone),
+    eq(inventoryEntries.status, 'pending'),
+  ];
+  if (tenantId != null) pendingConditions.push(eq(inventoryEntries.tenantId, tenantId));
+
   const [pending] = await db
     .select()
     .from(inventoryEntries)
-    .where(
-      and(
-        eq(inventoryEntries.senderPhone, phone),
-        eq(inventoryEntries.status, 'pending')
-      )
-    )
+    .where(and(...pendingConditions))
     .orderBy(desc(inventoryEntries.createdAt))
     .limit(1);
 
@@ -33,6 +34,8 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
     await sendMessage(phone, 'Nenhuma entrada pendente encontrada.');
     return true;
   }
+
+  const effectiveTenantId = tenantId ?? pending.tenantId;
 
   if (isConfirm) {
     await db
@@ -53,24 +56,22 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
       if (qty <= 0) continue;
 
       // Get product for unit conversion
-      const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+      const [product] = await db.select().from(products).where(and(eq(products.id, item.productId), eq(products.tenantId, effectiveTenantId)));
       if (!product) continue;
 
       let stockIncrement: number;
 
       if (item.unit.toLowerCase() === product.defaultUnit.toLowerCase()) {
-        // Same unit — direct addition
+        // Same unit -- direct addition
         stockIncrement = qty;
       } else {
-        // Different units — convert through grams
+        // Different units -- convert through grams
         const unitWeightG = product.unitWeightG ? Number(product.unitWeightG) : null;
         const inGrams = convertToGrams(qty, item.unit, unitWeightG);
         if (inGrams == null) {
-          // Can't convert — add as-is and log
           console.warn(`[Stock] Cannot convert ${qty} ${item.unit} to ${product.defaultUnit} for product ${product.id}`);
           stockIncrement = qty;
         } else {
-          // Convert grams to default unit
           const { convertFromGrams } = await import('@/lib/stock/convert-units');
           const converted = convertFromGrams(inGrams, product.defaultUnit, unitWeightG);
           stockIncrement = converted ?? qty;
@@ -89,13 +90,14 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
           currentStock: sql`${products.currentStock}::numeric + ${String(stockIncrement)}::numeric`,
           ...(costPerUnit != null ? { costPerUnit } : {}),
         })
-        .where(eq(products.id, item.productId));
+        .where(and(eq(products.id, item.productId), eq(products.tenantId, effectiveTenantId)));
 
       // Create stock movement
       const unitWeightG = product.unitWeightG ? Number(product.unitWeightG) : null;
       const quantityG = convertToGrams(qty, item.unit, unitWeightG);
 
       await db.insert(stockMovements).values({
+        tenantId: effectiveTenantId,
         productId: item.productId,
         type: 'entrada',
         quantity: String(qty),
@@ -107,7 +109,7 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
       });
 
       // Check alerts
-      await checkAndCreateAlerts(item.productId);
+      await checkAndCreateAlerts(item.productId, effectiveTenantId);
     }
 
     const summary = items.map((i) => `  - ${i.productName}: ${i.quantity} ${i.unit}`).join('\n');
@@ -124,16 +126,17 @@ export async function handleConfirmation(phone: string, text: string): Promise<b
   return true;
 }
 
-export async function expirePendingEntries(): Promise<void> {
+export async function expirePendingEntries(tenantId?: number): Promise<void> {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const conditions = [
+    eq(inventoryEntries.status, 'pending'),
+    lt(inventoryEntries.createdAt, twentyFourHoursAgo),
+  ];
+  if (tenantId != null) conditions.push(eq(inventoryEntries.tenantId, tenantId));
 
   await db
     .update(inventoryEntries)
     .set({ status: 'expired' })
-    .where(
-      and(
-        eq(inventoryEntries.status, 'pending'),
-        lt(inventoryEntries.createdAt, twentyFourHoursAgo)
-      )
-    );
+    .where(and(...conditions));
 }

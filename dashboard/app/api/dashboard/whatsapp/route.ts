@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantScope } from '@/lib/db/tenant';
 
 const BASE_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8082';
 const API_KEY = process.env.EVOLUTION_API_KEY || '';
@@ -10,6 +11,9 @@ function headers() {
 
 export async function GET() {
   try {
+    // Verify auth (tenantId not used for external API call but ensures user is authenticated)
+    await getTenantScope();
+
     // Fetch instance info
     const res = await fetch(`${BASE_URL}/instance/fetchInstances`, { headers: headers() });
     if (!res.ok) return NextResponse.json({ status: 'error', message: 'Evolution API unreachable' }, { status: 502 });
@@ -38,6 +42,7 @@ export async function GET() {
 // POST: generate QR code or disconnect
 export async function POST(request: NextRequest) {
   try {
+    await getTenantScope();
     const { action } = await request.json();
 
     if (action === 'connect') {

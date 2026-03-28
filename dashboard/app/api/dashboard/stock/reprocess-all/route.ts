@@ -7,32 +7,19 @@ import {
   dailyStockRuns,
   stockAlerts,
 } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { processDailySales } from '@/lib/stock/process-daily-sales';
-
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
-      return true;
-    }
-  }
-  return false;
-}
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function POST(request: NextRequest) {
-  const isCookieAuth = request.cookies.has('auth-token');
-  if (!isCookieAuth && !isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const { tenantId } = await getTenantScope();
+
     // Step 1: Get all affected dates
     const runs = await db
       .select({ date: dailyStockRuns.date })
       .from(dailyStockRuns)
-      .where(eq(dailyStockRuns.status, 'completed'));
+      .where(and(eq(dailyStockRuns.status, 'completed'), eq(dailyStockRuns.tenantId, tenantId)));
 
     const dates = [...new Set(runs.map(r => r.date))].sort();
 
@@ -41,14 +28,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Reverse all daily_processing stock movements
-    // Sum quantityG per product to know how much to add back
     const movementSums = await db
       .select({
         productId: stockMovements.productId,
         totalDeductedG: sql<string>`SUM(${stockMovements.quantityG}::numeric)`,
       })
       .from(stockMovements)
-      .where(eq(stockMovements.referenceType, 'daily_processing'))
+      .where(and(eq(stockMovements.referenceType, 'daily_processing'), eq(stockMovements.tenantId, tenantId)))
       .groupBy(stockMovements.productId);
 
     // Add back deducted quantities to currentStock
@@ -58,11 +44,10 @@ export async function POST(request: NextRequest) {
       const [product] = await db
         .select({ defaultUnit: products.defaultUnit, unitWeightG: products.unitWeightG })
         .from(products)
-        .where(eq(products.id, productId));
+        .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
 
       if (!product) continue;
 
-      // Convert grams back to product's default unit
       const grams = Number(totalDeductedG);
       let stockToAddBack: number;
 
@@ -85,43 +70,45 @@ export async function POST(request: NextRequest) {
         .set({
           currentStock: sql`${products.currentStock}::numeric + ${String(stockToAddBack)}::numeric`,
         })
-        .where(eq(products.id, productId));
+        .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
     }
 
     // Step 3: Delete all daily_processing movements
     const deletedMovements = await db
       .delete(stockMovements)
-      .where(eq(stockMovements.referenceType, 'daily_processing'))
+      .where(and(eq(stockMovements.referenceType, 'daily_processing'), eq(stockMovements.tenantId, tenantId)))
       .returning({ id: stockMovements.id });
 
     // Step 4: Clear processedOrders
     const deletedProcessed = await db
       .delete(processedOrders)
+      .where(eq(processedOrders.tenantId, tenantId))
       .returning({ id: processedOrders.id });
 
     // Step 5: Clear dailyStockRuns
     const deletedRuns = await db
       .delete(dailyStockRuns)
+      .where(eq(dailyStockRuns.tenantId, tenantId))
       .returning({ id: dailyStockRuns.id });
 
-    // Step 6: Resolve all existing stock alerts (will be recreated if needed)
+    // Step 6: Resolve all existing stock alerts
     await db
       .update(stockAlerts)
       .set({ status: 'resolved', resolvedAt: new Date() })
-      .where(eq(stockAlerts.status, 'active'));
+      .where(and(eq(stockAlerts.status, 'active'), eq(stockAlerts.tenantId, tenantId)));
 
     // Step 7: Snapshot stock before reprocessing
     const stockBefore = await db
       .select({ id: products.id, name: products.name, currentStock: products.currentStock, category: products.category })
       .from(products)
-      .where(eq(products.active, true));
+      .where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
     // Step 8: Reprocess each date in chronological order
     const reprocessResults: { date: string; ordersProcessed: number; errors: number; unmatchedItems: string[] }[] = [];
 
     for (const date of dates) {
       try {
-        const result = await processDailySales(date);
+        const result = await processDailySales(date, tenantId);
         reprocessResults.push({
           date,
           ordersProcessed: result.ordersProcessed,
@@ -142,7 +129,7 @@ export async function POST(request: NextRequest) {
     const stockAfter = await db
       .select({ id: products.id, name: products.name, currentStock: products.currentStock, category: products.category })
       .from(products)
-      .where(eq(products.active, true));
+      .where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
     // Build comparison for complement products
     const comparison = stockAfter

@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { tenants } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { seedComplementGramages } from '@/lib/stock/seed-complements';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth: cookie (via middleware) or CRON_SECRET bearer token
-    const isCookieAuth = request.cookies.has('auth-token');
-    if (!isCookieAuth) {
-      const authHeader = request.headers.get('authorization');
-      const token = authHeader?.replace('Bearer ', '');
-      if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
     }
 
-    const result = await seedComplementGramages();
+    const result = await seedComplementGramages(tenantId);
     return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {
     console.error('[Seed Complements] Error:', error);

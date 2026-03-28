@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { complementGramages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
     if (!productId) return NextResponse.json({ error: 'productId is required' }, { status: 400 });
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest) {
     const gramages = await db
       .select()
       .from(complementGramages)
-      .where(eq(complementGramages.productId, Number(productId)));
+      .where(and(eq(complementGramages.productId, Number(productId)), eq(complementGramages.tenantId, tenantId)));
 
     return NextResponse.json({ gramages });
   } catch (error) {
@@ -23,6 +25,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { productId, gramages } = await request.json();
     if (!productId) return NextResponse.json({ error: 'productId is required' }, { status: 400 });
     if (!gramages || !Array.isArray(gramages)) return NextResponse.json({ error: 'gramages array is required' }, { status: 400 });
@@ -38,6 +41,7 @@ export async function PUT(request: NextRequest) {
         .where(and(
           eq(complementGramages.productId, Number(productId)),
           eq(complementGramages.sizeTier, sizeTier),
+          eq(complementGramages.tenantId, tenantId),
         ));
 
       if (Number(quantityG) === 0) {
@@ -45,14 +49,14 @@ export async function PUT(request: NextRequest) {
         if (existing) {
           await db
             .delete(complementGramages)
-            .where(eq(complementGramages.id, existing.id));
+            .where(and(eq(complementGramages.id, existing.id), eq(complementGramages.tenantId, tenantId)));
         }
       } else if (existing) {
         // Update existing row
         const [updated] = await db
           .update(complementGramages)
           .set({ quantityG: String(quantityG) })
-          .where(eq(complementGramages.id, existing.id))
+          .where(and(eq(complementGramages.id, existing.id), eq(complementGramages.tenantId, tenantId)))
           .returning();
         results.push(updated);
       } else {
@@ -60,6 +64,7 @@ export async function PUT(request: NextRequest) {
         const [inserted] = await db
           .insert(complementGramages)
           .values({
+            tenantId,
             productId: Number(productId),
             sizeTier,
             quantityG: String(quantityG),

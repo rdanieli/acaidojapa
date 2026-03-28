@@ -44,11 +44,6 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
 
   if (pendingSenders.length === 0) return false;
 
-  // The verification message was sent to a specific phone number.
-  // When that person replies, it comes with a LID.
-  // We can't know which pending sender this LID belongs to if there are multiple.
-  // Strategy: if only 1 pending, auto-map. If multiple, we map sequentially.
-  // For safety: we map to the oldest pending sender (first added).
   const target = pendingSenders[0];
 
   await db
@@ -56,7 +51,6 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
     .set({ lid, verificationStatus: 'verified' })
     .where(eq(allowedSenders.id, target.id));
 
-  // Reply using the real phone number (we know it from the DB)
   await sendMessage(
     target.phone,
     `Verificado! ${target.name}, seu acesso está ativo. Agora você pode enviar mensagens com itens de estoque ou fotos de notas fiscais.`
@@ -69,8 +63,9 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
 /**
  * Look up sender by LID or phone in the allowed_senders table.
  * Only returns verified + active senders.
+ * Also returns the tenantId.
  */
-async function lookupSender(phone: string, isLid: boolean) {
+async function lookupSender(phone: string, isLid: boolean): Promise<{ replyPhone: string; senderName: string; tenantId: number } | null> {
   if (isLid) {
     const [byLid] = await db
       .select()
@@ -78,7 +73,7 @@ async function lookupSender(phone: string, isLid: boolean) {
       .where(eq(allowedSenders.lid, phone))
       .limit(1);
     if (byLid && byLid.active && byLid.verificationStatus === 'verified') {
-      return { replyPhone: byLid.phone, senderName: byLid.name };
+      return { replyPhone: byLid.phone, senderName: byLid.name, tenantId: byLid.tenantId };
     }
     return null;
   }
@@ -89,7 +84,7 @@ async function lookupSender(phone: string, isLid: boolean) {
     .where(eq(allowedSenders.phone, phone))
     .limit(1);
   if (byPhone && byPhone.active && byPhone.verificationStatus === 'verified') {
-    return { replyPhone: byPhone.phone, senderName: byPhone.name };
+    return { replyPhone: byPhone.phone, senderName: byPhone.name, tenantId: byPhone.tenantId };
   }
   return null;
 }
@@ -121,7 +116,7 @@ export async function POST(request: NextRequest) {
       if (verified) return NextResponse.json({ ok: true });
     }
 
-    // 2. Look up sender
+    // 2. Look up sender (now returns tenantId)
     const sender = await lookupSender(phone, isLid);
     if (!sender) {
       console.log('[Webhook] Not allowed:', phone);
@@ -129,7 +124,8 @@ export async function POST(request: NextRequest) {
     }
 
     const replyTo = sender.replyPhone;
-    console.log('[Webhook] Allowed! ReplyTo:', replyTo, 'Name:', sender.senderName);
+    const tenantId = sender.tenantId;
+    console.log('[Webhook] Allowed! ReplyTo:', replyTo, 'Name:', sender.senderName, 'TenantId:', tenantId);
 
     const message = body.data?.message;
     if (!message) return NextResponse.json({ ok: true });
@@ -140,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Check for inventory confirmation reply (ok/cancelar)
     if (textContent && !hasImage && !hasAudio) {
-      const handled = await handleConfirmation(replyTo, textContent);
+      const handled = await handleConfirmation(replyTo, textContent, tenantId);
       if (handled) return NextResponse.json({ ok: true });
     }
 
@@ -158,7 +154,7 @@ export async function POST(request: NextRequest) {
     console.log('[Webhook] Processing message from', replyTo);
 
     // 4. Load product catalog for AI matching
-    const catalog = await db.select().from(products).where(eq(products.active, true));
+    const catalog = await db.select().from(products).where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
     // 5. Process inventory message
     let result;
@@ -192,18 +188,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 6. Resolve product IDs — create new products for unmatched items
+    // 6. Resolve product IDs -- create new products for unmatched items
     for (const item of result.items) {
       if (item.matched_product_id) {
-        // Verify the matched ID exists
-        const [existing] = await db.select().from(products).where(eq(products.id, item.matched_product_id)).limit(1);
+        // Verify the matched ID exists for this tenant
+        const [existing] = await db.select().from(products).where(and(eq(products.id, item.matched_product_id), eq(products.tenantId, tenantId))).limit(1);
         if (!existing) item.matched_product_id = undefined;
       }
       if (!item.matched_product_id) {
         // Create new product in catalog
         const [newProduct] = await db
           .insert(products)
-          .values({ name: item.product_name, defaultUnit: item.unit })
+          .values({ tenantId, name: item.product_name, defaultUnit: item.unit })
           .onConflictDoUpdate({ target: products.name, set: { active: true } })
           .returning();
         item.matched_product_id = newProduct.id;
@@ -212,14 +208,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Auto-confirm any existing pending entries from this sender
-    //    (when they send multiple messages in a row without confirming)
     const pendingEntries = await db
       .select()
       .from(inventoryEntries)
       .where(
         and(
           eq(inventoryEntries.senderPhone, replyTo),
-          eq(inventoryEntries.status, 'pending')
+          eq(inventoryEntries.status, 'pending'),
+          eq(inventoryEntries.tenantId, tenantId)
         )
       );
 
@@ -236,7 +232,7 @@ export async function POST(request: NextRequest) {
         const qty = Number(item.quantity) || 0;
         if (qty <= 0) continue;
 
-        const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+        const [product] = await db.select().from(products).where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
         if (!product) continue;
 
         const { convertToGrams, convertFromGrams } = await import('@/lib/stock/convert-units');
@@ -263,10 +259,11 @@ export async function POST(request: NextRequest) {
         await db.update(products).set({
           currentStock: sql`${products.currentStock}::numeric + ${String(stockIncrement)}::numeric`,
           ...(costPerUnit != null ? { costPerUnit } : {}),
-        }).where(eq(products.id, item.productId));
+        }).where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
 
         const quantityG = convertToGrams(qty, item.unit, unitWeightG);
         await db.insert(stockMovements).values({
+          tenantId,
           productId: item.productId,
           type: 'entrada',
           quantity: String(qty),
@@ -278,7 +275,7 @@ export async function POST(request: NextRequest) {
         });
 
         const { checkAndCreateAlerts } = await import('@/lib/stock/check-alerts');
-        await checkAndCreateAlerts(item.productId);
+        await checkAndCreateAlerts(item.productId, tenantId);
       }
 
       console.log(`[Webhook] Auto-confirmed entry #${pe.id} (new message arrived from same sender)`);
@@ -287,11 +284,12 @@ export async function POST(request: NextRequest) {
     // Save new entry
     const [entry] = await db
       .insert(inventoryEntries)
-      .values({ source, rawText: result.raw_text || null, senderPhone: replyTo, status: 'pending' })
+      .values({ tenantId, source, rawText: result.raw_text || null, senderPhone: replyTo, status: 'pending' })
       .returning();
 
     await db.insert(inventoryItems).values(
       result.items.map((item) => ({
+        tenantId,
         entryId: entry.id,
         productId: item.matched_product_id || null,
         productName: item.product_name,

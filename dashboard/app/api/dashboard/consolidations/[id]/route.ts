@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { stockConsolidations, consolidationItems, products, stockMovements } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { checkAndCreateAlerts } from '@/lib/stock/check-alerts';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { tenantId } = await getTenantScope();
     const { id } = await params;
     const { items } = await request.json();
     if (!items || !Array.isArray(items)) {
       return NextResponse.json({ error: 'items array required' }, { status: 400 });
     }
 
+    // Verify consolidation belongs to tenant
+    const [consolidation] = await db.select().from(stockConsolidations).where(and(eq(stockConsolidations.id, Number(id)), eq(stockConsolidations.tenantId, tenantId)));
+    if (!consolidation) return NextResponse.json({ error: 'Consolidation not found' }, { status: 404 });
+
     for (const item of items) {
       const actual = item.actualStock != null ? Number(item.actualStock) : null;
       const updates: any = {};
       if (actual != null) {
         updates.actualStock = String(actual);
-        // Calculate difference: will be set when we know expected
         const [existing] = await db
           .select()
           .from(consolidationItems)
-          .where(eq(consolidationItems.id, Number(item.id)));
+          .where(and(eq(consolidationItems.id, Number(item.id)), eq(consolidationItems.tenantId, tenantId)));
         if (existing) {
           const expected = Number(existing.expectedStock) || 0;
           updates.difference = String(actual - expected);
@@ -32,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       await db
         .update(consolidationItems)
         .set(updates)
-        .where(eq(consolidationItems.id, Number(item.id)));
+        .where(and(eq(consolidationItems.id, Number(item.id)), eq(consolidationItems.tenantId, tenantId)));
     }
 
     return NextResponse.json({ ok: true });
@@ -44,6 +49,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { tenantId } = await getTenantScope();
     const { id } = await params;
     const { action } = await request.json();
 
@@ -51,11 +57,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
+    // Verify consolidation belongs to tenant
+    const [consolidation] = await db.select().from(stockConsolidations).where(and(eq(stockConsolidations.id, Number(id)), eq(stockConsolidations.tenantId, tenantId)));
+    if (!consolidation) return NextResponse.json({ error: 'Consolidation not found' }, { status: 404 });
+
     // Get consolidation items
     const items = await db
       .select()
       .from(consolidationItems)
-      .where(eq(consolidationItems.consolidationId, Number(id)));
+      .where(and(eq(consolidationItems.consolidationId, Number(id)), eq(consolidationItems.tenantId, tenantId)));
 
     // Create stock movements for differences and update currentStock
     for (const item of items) {
@@ -66,11 +76,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const diff = actual - expected;
 
       // Get product to use correct unit
-      const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+      const [product] = await db.select().from(products).where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
       if (!product) continue;
 
       if (diff !== 0) {
         await db.insert(stockMovements).values({
+          tenantId,
           productId: item.productId,
           type: 'consolidacao',
           quantity: String(Math.abs(diff)),
@@ -86,16 +97,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await db
         .update(products)
         .set({ currentStock: String(actual) })
-        .where(eq(products.id, item.productId));
+        .where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
 
-      await checkAndCreateAlerts(item.productId);
+      await checkAndCreateAlerts(item.productId, tenantId);
     }
 
     // Finalize
     await db
       .update(stockConsolidations)
       .set({ status: 'finalized', finalizedAt: new Date() })
-      .where(eq(stockConsolidations.id, Number(id)));
+      .where(and(eq(stockConsolidations.id, Number(id)), eq(stockConsolidations.tenantId, tenantId)));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

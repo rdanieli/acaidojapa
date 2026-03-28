@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { products } from '@/lib/db/schema';
-import { eq, sql, and, lte, gt } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET() {
   try {
+    const { tenantId } = await getTenantScope();
     const activeProducts = await db
       .select()
       .from(products)
-      .where(eq(products.active, true));
+      .where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
     const totalProducts = activeProducts.length;
     let lowStock = 0;

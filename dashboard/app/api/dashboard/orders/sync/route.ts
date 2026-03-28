@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { tenants } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { syncOrdersForRange, getLastSyncDate } from '@/lib/sync-orders';
 import { formatDateISO } from '@/lib/format';
-
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
-      return true;
-    }
-  }
-  return false;
-}
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function POST(request: NextRequest) {
   try {
-    const isCookieAuth = request.cookies.has('auth-token');
-    if (!isCookieAuth && !isAuthorized(request)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
     }
 
     const body = await request.json().catch(() => ({}));
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     const start = body.start || today;
     const end = body.end || start;
 
-    const result = await syncOrdersForRange(start, end);
+    const result = await syncOrdersForRange(start, end, tenantId);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('[Sync Orders] Error:', error);
@@ -35,9 +36,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const lastDate = await getLastSyncDate();
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
+    }
+
+    const lastDate = await getLastSyncDate(tenantId);
     return NextResponse.json({ lastSyncDate: lastDate });
   } catch (error: any) {
     console.error('[Sync Orders] Error:', error);

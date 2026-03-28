@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalOrders } from '@/lib/local-orders';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const orders = await getLocalOrders(start, end, channel);
+    const { tenantId } = await getTenantScope();
+    const orders = await getLocalOrders(start, end, channel, tenantId);
     return NextResponse.json({ orders });
   } catch (error: any) {
     console.error('Orders error:', error);

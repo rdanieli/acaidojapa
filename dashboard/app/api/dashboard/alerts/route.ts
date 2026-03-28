@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { stockAlerts, products } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET() {
   try {
+    const { tenantId } = await getTenantScope();
     const alerts = await db
       .select({
         id: stockAlerts.id,
@@ -19,7 +21,7 @@ export async function GET() {
       })
       .from(stockAlerts)
       .leftJoin(products, eq(stockAlerts.productId, products.id))
-      .where(eq(stockAlerts.status, 'active'))
+      .where(and(eq(stockAlerts.status, 'active'), eq(stockAlerts.tenantId, tenantId)))
       .orderBy(stockAlerts.createdAt);
 
     return NextResponse.json({ alerts });
@@ -31,6 +33,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { id, status } = await request.json();
     if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 });
 
@@ -40,7 +43,7 @@ export async function PUT(request: NextRequest) {
     const [updated] = await db
       .update(stockAlerts)
       .set(updates)
-      .where(eq(stockAlerts.id, Number(id)))
+      .where(and(eq(stockAlerts.id, Number(id)), eq(stockAlerts.tenantId, tenantId)))
       .returning();
 
     return NextResponse.json({ alert: updated });

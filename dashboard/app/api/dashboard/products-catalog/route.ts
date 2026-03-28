@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { products, inventoryItems } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET() {
   try {
-    const all = await db.select().from(products).orderBy(products.name);
+    const { tenantId } = await getTenantScope();
+    const all = await db.select().from(products).where(eq(products.tenantId, tenantId)).orderBy(products.name);
     return NextResponse.json({ products: all });
   } catch (error) {
     console.error('[Products API] Error:', error);
@@ -15,12 +17,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { name, aliases, defaultUnit, category, unitWeightG, minStock, costPerUnit } = await request.json();
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     const [product] = await db
       .insert(products)
       .values({
+        tenantId,
         name,
         aliases: aliases || null,
         defaultUnit: defaultUnit || 'un',
@@ -40,6 +44,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { id, name, aliases, defaultUnit, active, category, unitWeightG, minStock, costPerUnit } = await request.json();
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
@@ -56,7 +61,7 @@ export async function PUT(request: NextRequest) {
     const [updated] = await db
       .update(products)
       .set(updates)
-      .where(eq(products.id, Number(id)))
+      .where(and(eq(products.id, Number(id)), eq(products.tenantId, tenantId)))
       .returning();
 
     return NextResponse.json({ product: updated });
@@ -68,29 +73,30 @@ export async function PUT(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { sourceId, targetId } = await request.json();
     if (!sourceId || !targetId) return NextResponse.json({ error: 'sourceId and targetId required' }, { status: 400 });
 
     // Get both products
-    const [source] = await db.select().from(products).where(eq(products.id, Number(sourceId)));
-    const [target] = await db.select().from(products).where(eq(products.id, Number(targetId)));
+    const [source] = await db.select().from(products).where(and(eq(products.id, Number(sourceId)), eq(products.tenantId, tenantId)));
+    const [target] = await db.select().from(products).where(and(eq(products.id, Number(targetId)), eq(products.tenantId, tenantId)));
     if (!source || !target) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
     // Move inventory items from source to target
     await db
       .update(inventoryItems)
       .set({ productId: Number(targetId) })
-      .where(eq(inventoryItems.productId, Number(sourceId)));
+      .where(and(eq(inventoryItems.productId, Number(sourceId)), eq(inventoryItems.tenantId, tenantId)));
 
     // Merge aliases
     const sourceNames = [source.name, ...(source.aliases ? source.aliases.split(',').map((a: string) => a.trim()) : [])];
     const targetAliases = target.aliases ? target.aliases.split(',').map((a: string) => a.trim()) : [];
     const merged = [...new Set([...targetAliases, ...sourceNames])].join(', ');
 
-    await db.update(products).set({ aliases: merged }).where(eq(products.id, Number(targetId)));
+    await db.update(products).set({ aliases: merged }).where(and(eq(products.id, Number(targetId)), eq(products.tenantId, tenantId)));
 
     // Deactivate source
-    await db.update(products).set({ active: false }).where(eq(products.id, Number(sourceId)));
+    await db.update(products).set({ active: false }).where(and(eq(products.id, Number(sourceId)), eq(products.tenantId, tenantId)));
 
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -101,10 +107,11 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-    await db.delete(products).where(eq(products.id, Number(id)));
+    await db.delete(products).where(and(eq(products.id, Number(id)), eq(products.tenantId, tenantId)));
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Products API] Error:', error);
