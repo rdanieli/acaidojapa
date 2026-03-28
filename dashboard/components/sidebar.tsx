@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, IceCreamCone, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useSession } from '@/hooks/use-session';
 
 const links = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,16 +14,22 @@ const links = [
   { href: '/estoque', label: 'Estoque', icon: Package },
   { href: '/fichas-tecnicas', label: 'Fichas Técnicas', icon: ClipboardList },
   { href: '/consolidacao', label: 'Inventário', icon: ClipboardCheck },
-  { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
+  { href: '/financeiro', label: 'Financeiro', icon: DollarSign, minRole: 'manager' as const },
   { href: '/desperdicios', label: 'Desperdícios', icon: Trash2 },
   { href: '/checklists', label: 'Checklists', icon: CheckSquare },
   { href: '/etiquetas', label: 'Etiquetas', icon: Tag },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings, minRole: 'manager' as const },
 ];
+
+const roleHierarchy: Record<string, number> = { owner: 3, manager: 2, employee: 1 };
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: sessionData } = useSession();
+  const role = sessionData?.session?.role || 'employee';
+  const tenantName = sessionData?.session?.tenant?.name || 'Dashboard';
+  const visibleLinks = links.filter(l => !l.minRole || roleHierarchy[role] >= roleHierarchy[l.minRole]);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -38,7 +45,7 @@ export function Sidebar() {
           <IceCreamCone className="h-5 w-5 text-white" />
         </div>
         <div>
-          <span className="font-bold text-sm tracking-tight">Açaí do Japa</span>
+          <span className="font-bold text-sm tracking-tight">{tenantName}</span>
           <p className="text-[10px] text-muted-foreground/60 font-medium">Dashboard</p>
         </div>
         <div className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-acai/40 via-acai/20 to-transparent" />
@@ -48,7 +55,7 @@ export function Sidebar() {
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
           Menu
         </p>
-        {links.map(({ href, label, icon: Icon }) => {
+        {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
@@ -92,10 +99,13 @@ export function Sidebar() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { data: sessionData } = useSession();
+  const role = sessionData?.session?.role || 'employee';
+  const visibleLinks = links.filter(l => !l.minRole || roleHierarchy[role] >= roleHierarchy[l.minRole]).slice(0, 5);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
-      {links.map(({ href, label, icon: Icon }) => {
+      {visibleLinks.map(({ href, label, icon: Icon }) => {
         const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
         return (
           <Link

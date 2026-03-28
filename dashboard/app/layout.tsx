@@ -15,8 +15,8 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Açaí do Japa - Dashboard',
-  description: 'Dashboard de vendas do Açaí do Japa',
+  title: 'Gestão Açaí — Estoque inteligente para sua açaiteria',
+  description: 'Plataforma de gestão de estoque, vendas e operações para açaiterias',
 };
 
 export default function RootLayout({

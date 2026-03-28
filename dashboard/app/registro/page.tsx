@@ -54,8 +54,8 @@ export default function RegistroPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Criar Conta</h1>
-          <p className="text-sm text-muted-foreground mt-1">Comece a gerenciar seu negocio</p>
+          <h1 className="text-2xl font-bold gradient-text">Gestão Açaí</h1>
+          <p className="text-sm text-muted-foreground mt-1">Crie sua conta e comece a gerenciar sua açaiteria</p>
         </div>
 
         <form onSubmit={handleSubmit} className="glass-card rounded-xl p-6 space-y-4">
