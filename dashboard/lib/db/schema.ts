@@ -31,6 +31,7 @@ export const inventoryEntries = pgTable('inventory_entries', {
   source: text('source').notNull(), // 'image' | 'audio' | 'text'
   rawText: text('raw_text'),
   senderPhone: text('sender_phone').notNull(),
+  supplierId: integer('supplier_id'), // references suppliers.id (table defined later)
   status: text('status').notNull().default('pending'), // 'pending' | 'confirmed' | 'rejected' | 'expired'
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),

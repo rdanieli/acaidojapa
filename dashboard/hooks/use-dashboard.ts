@@ -1003,6 +1003,33 @@ export function useDeleteSupplier() {
   });
 }
 
+// --- Notifications ---
+export function useNotifications() {
+  return useQuery<{ notifications: any[]; count: number }>({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/notifications');
+      if (!res.ok) throw new Error('Failed to fetch notifications');
+      return res.json();
+    },
+    staleTime: 60 * 1000, // refresh every minute
+    refetchInterval: 60 * 1000,
+  });
+}
+
+// --- Stock History ---
+export function useStockHistory(productId: number | null, days = 30) {
+  return useQuery<{ productName: string; unit: string; currentStock: number; history: { date: string; stock: number }[] }>({
+    queryKey: ['stock-history', productId, days],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/stock-history?productId=${productId}&days=${days}`);
+      if (!res.ok) throw new Error('Failed to fetch stock history');
+      return res.json();
+    },
+    enabled: !!productId,
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({
