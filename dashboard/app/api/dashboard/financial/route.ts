@@ -1,8 +1,8 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { orders, orderItems, soldProducts, recipes, products, complementGramages } from '@/lib/db/schema';
-import { and, gte, lte, eq, desc, inArray } from 'drizzle-orm';
+import { orders, orderItems, soldProducts, recipes, products, complementGramages, manualSales } from '@/lib/db/schema';
+import { and, gte, lte, eq, desc, inArray, sql } from 'drizzle-orm';
 import { parseOrderItem, clearParserCaches } from '@/lib/stock/parse-order-item';
 import { getTenantScope } from '@/lib/db/tenant';
 
@@ -45,7 +45,16 @@ export async function GET(request: NextRequest) {
       .where(and(...conditions))
       .orderBy(desc(orders.datetime));
 
-    if (dbOrders.length === 0) {
+    // Check if we have manual sales even if no POS orders
+    const manualSalesCount = await db.select({ count: sql<number>`count(*)` }).from(manualSales)
+      .where(and(
+        eq(manualSales.tenantId, tenantId),
+        gte(manualSales.date, start),
+        lte(manualSales.date, end),
+      ));
+    const hasManualSales = Number(manualSalesCount[0]?.count) > 0;
+
+    if (dbOrders.length === 0 && !hasManualSales) {
       return NextResponse.json({
         revenue: 0,
         cmv: 0,
@@ -309,6 +318,65 @@ export async function GET(request: NextRequest) {
           revenue: itemRevenue,
           cmv: itemCmv,
         });
+      }
+    }
+
+    // 6. Include manual sales in financial calculations
+    const manualSalesData = await db.select().from(manualSales)
+      .where(and(
+        eq(manualSales.tenantId, tenantId),
+        gte(manualSales.date, start),
+        lte(manualSales.date, end),
+      ));
+
+    for (const sale of manualSalesData) {
+      const saleDate = sale.date;
+      const saleItems = sale.items as any[];
+
+      for (const saleItem of saleItems) {
+        const qty = Number(saleItem.quantity) || 1;
+        const itemRevenue = qty * (Number(saleItem.unitPrice) || 0);
+        totalRevenue += itemRevenue;
+
+        // Track daily revenue
+        const daily = dailyMap.get(saleDate);
+        if (daily) {
+          daily.revenue += itemRevenue;
+        } else {
+          dailyMap.set(saleDate, { revenue: itemRevenue, cmv: 0 });
+        }
+
+        // Calculate CMV from recipe if soldProductId exists
+        let itemCmv = 0;
+        if (saleItem.soldProductId) {
+          const sp = soldProductMap.get(saleItem.soldProductId);
+          if (sp?.costPrice) {
+            itemCmv = Number(sp.costPrice) * qty;
+          } else {
+            itemCmv = getRecipeCost(saleItem.soldProductId) * qty;
+          }
+        }
+
+        totalCmv += itemCmv;
+        const dailyEntry = dailyMap.get(saleDate);
+        if (dailyEntry) dailyEntry.cmv += itemCmv;
+
+        // Track per-product stats
+        const productKey = saleItem.soldProductId ? `sp-${saleItem.soldProductId}` : `manual-${saleItem.name}`;
+        const existing = productStats.get(productKey);
+        if (existing) {
+          existing.qtySold += qty;
+          existing.revenue += itemRevenue;
+          existing.cmv += itemCmv;
+        } else {
+          productStats.set(productKey, {
+            soldProductId: saleItem.soldProductId || 0,
+            name: saleItem.name || 'Produto',
+            qtySold: qty,
+            revenue: itemRevenue,
+            cmv: itemCmv,
+          });
+        }
       }
     }
 

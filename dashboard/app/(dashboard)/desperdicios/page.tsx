@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Trash2, Plus, AlertTriangle, Calendar } from 'lucide-react';
+import { exportToCsv } from '@/lib/csv-export';
+import { ExportButton } from '@/components/export-button';
 
 const UNITS = ['un', 'kg', 'L', 'cx', 'pct', 'sc', 'g', 'ml'];
 
@@ -48,6 +50,19 @@ export default function DesperdiciosPage() {
   const entries = data?.entries ?? [];
   const activeProducts = (catalogData?.products ?? []).filter((p: any) => p.active);
 
+  const handleExport = () => {
+    const headers = ['Data', 'Produto', 'Quantidade', 'Unidade', 'Motivo', 'Observações'];
+    const rows = entries.map((entry: any) => [
+      entry.date,
+      entry.productName || `#${entry.productId}`,
+      entry.quantity,
+      entry.unit,
+      REASONS.find((r) => r.value === entry.reason)?.label || entry.reason,
+      entry.notes || '',
+    ]);
+    exportToCsv('desperdicios.csv', headers, rows);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId || !quantity || !date) return;
@@ -84,6 +99,9 @@ export default function DesperdiciosPage() {
         <div>
           <h2 className="text-lg font-bold tracking-tight">Controle de Desperdicios</h2>
           <p className="text-xs text-muted-foreground/60">Registre perdas e acompanhe o historico</p>
+        </div>
+        <div className="ml-auto">
+          <ExportButton onClick={handleExport} />
         </div>
       </div>
 

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShoppingBag, Plus, X, Calendar } from 'lucide-react';
+import { exportToCsv } from '@/lib/csv-export';
+import { ExportButton } from '@/components/export-button';
 
 const PAYMENT_METHODS = [
   { value: 'dinheiro', label: 'Dinheiro' },
@@ -47,6 +49,23 @@ export default function VendasPage() {
 
   const activeSoldProducts = (soldData?.soldProducts ?? []).filter((p: any) => p.active);
   const sales = salesData?.sales ?? [];
+
+  const handleExport = () => {
+    const headers = ['Data', 'Total', 'Pagamento', 'Itens', 'Observações'];
+    const rows = sales.map((sale: any) => {
+      const saleItems = Array.isArray(sale.items) ? sale.items : [];
+      const payLabel = PAYMENT_METHODS.find((m) => m.value === sale.paymentMethod)?.label || sale.paymentMethod || '';
+      const itemsSummary = saleItems.map((i: any) => `${i.name || ''} x${i.quantity}`).join(', ');
+      return [
+        sale.date,
+        Number(sale.total).toFixed(2).replace('.', ','),
+        payLabel,
+        itemsSummary,
+        sale.notes || '',
+      ];
+    });
+    exportToCsv('vendas.csv', headers, rows);
+  };
 
   const updateItem = (index: number, field: keyof SaleItem, value: string) => {
     setItems((prev) => {
@@ -130,6 +149,9 @@ export default function VendasPage() {
         <div>
           <h2 className="text-lg font-bold tracking-tight">Vendas</h2>
           <p className="text-xs text-muted-foreground/60">Registre vendas manualmente</p>
+        </div>
+        <div className="ml-auto">
+          <ExportButton onClick={handleExport} />
         </div>
       </div>
 
