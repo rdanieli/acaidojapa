@@ -735,6 +735,148 @@ export function useSendShoppingList() {
   });
 }
 
+// --- Users ---
+export function useUsers() {
+  return useQuery<{ users: any[] }>({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    },
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; email: string; password: string; role?: string; phone?: string }) => {
+      const res = await fetch('/api/dashboard/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create user');
+      }
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { id: number; role?: string; active?: boolean; name?: string; phone?: string }) => {
+      const res = await fetch('/api/dashboard/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update user');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+// --- Waste ---
+export function useWasteEntries(filters?: { startDate?: string; endDate?: string; productId?: number }) {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.set('startDate', filters.startDate);
+  if (filters?.endDate) params.set('endDate', filters.endDate);
+  if (filters?.productId) params.set('productId', String(filters.productId));
+  const qs = params.toString();
+  return useQuery<{ entries: any[]; totalQuantity: number }>({
+    queryKey: ['waste-entries', filters],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/waste${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error('Failed to fetch waste entries');
+      return res.json();
+    },
+  });
+}
+
+export function useRecordWaste() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { productId: number; quantity: number; unit: string; reason: string; notes?: string; date: string }) => {
+      const res = await fetch('/api/dashboard/waste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to record waste');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['waste-entries'] });
+      qc.invalidateQueries({ queryKey: ['products-catalog'] });
+      qc.invalidateQueries({ queryKey: ['stock-movements'] });
+      qc.invalidateQueries({ queryKey: ['stock-summary'] });
+    },
+  });
+}
+
+// --- Checklists ---
+export function useChecklists(date?: string) {
+  const d = date || new Date().toISOString().split('T')[0];
+  return useQuery<{ templates: any[]; runs: any[] }>({
+    queryKey: ['checklists', d],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/checklists?date=${d}`);
+      if (!res.ok) throw new Error('Failed to fetch checklists');
+      return res.json();
+    },
+  });
+}
+
+export function useCreateChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { action: string; name?: string; items?: string[]; templateId?: number; date?: string; assignedTo?: number }) => {
+      const res = await fetch('/api/dashboard/checklists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create checklist');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['checklists'] }),
+  });
+}
+
+export function useUpdateChecklistRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { id: number; items?: any[]; status?: string }) => {
+      const res = await fetch('/api/dashboard/checklists', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update checklist');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['checklists'] }),
+  });
+}
+
+export function useDeleteChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/dashboard/checklists?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete checklist');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['checklists'] }),
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({
