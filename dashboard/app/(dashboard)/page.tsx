@@ -9,7 +9,7 @@ import { PaymentDonut } from '@/components/charts/payment-donut';
 import { ChannelComparison } from '@/components/charts/channel-comparison';
 import { TopProductsChart } from '@/components/charts/top-products-chart';
 import { formatCurrency } from '@/lib/format';
-import { DollarSign, ShoppingCart, Receipt, XCircle, Package, AlertTriangle, Ban } from 'lucide-react';
+import { DollarSign, ShoppingCart, Receipt, XCircle, Package, AlertTriangle, Ban, Rocket, ClipboardList, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,35 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Show welcome banner for new tenants */}
+      {metrics && metrics.totalRevenue === 0 && metrics.orderCount === 0 && (
+        <div className="glass-card rounded-xl p-6 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-acai">
+              <Rocket className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Bem-vindo ao Tongo Gestão!</h2>
+              <p className="text-sm text-muted-foreground">Aqui vão aparecer suas vendas e métricas. Para começar:</p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <a href="/estoque" className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <Package className="h-4 w-4 text-acai" />
+              <span className="text-sm">Cadastrar produtos</span>
+            </a>
+            <a href="/fichas-tecnicas" className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <ClipboardList className="h-4 w-4 text-acai" />
+              <span className="text-sm">Criar fichas técnicas</span>
+            </a>
+            <a href="/estoque" className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <MessageSquare className="h-4 w-4 text-acai" />
+              <span className="text-sm">Conectar WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 stagger-children">
         <KpiCard

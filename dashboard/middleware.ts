@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const PUBLIC_PATHS = [
+  '/landing',
   '/login',
   '/registro',
   '/api/auth/login',
