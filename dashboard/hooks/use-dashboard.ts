@@ -877,6 +877,132 @@ export function useDeleteChecklist() {
   });
 }
 
+// --- Manual Sales ---
+export function useManualSales(filters?: { startDate?: string; endDate?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.set('startDate', filters.startDate);
+  if (filters?.endDate) params.set('endDate', filters.endDate);
+  const qs = params.toString();
+  return useQuery<{ sales: any[] }>({
+    queryKey: ['manual-sales', filters],
+    queryFn: async () => {
+      const res = await fetch(`/api/dashboard/manual-sales${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error('Failed to fetch manual sales');
+      return res.json();
+    },
+  });
+}
+
+export function useRecordManualSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { date: string; items: any[]; paymentMethod?: string; notes?: string }) => {
+      const res = await fetch('/api/dashboard/manual-sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to record sale');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manual-sales'] });
+      qc.invalidateQueries({ queryKey: ['products-catalog'] });
+      qc.invalidateQueries({ queryKey: ['stock-movements'] });
+      qc.invalidateQueries({ queryKey: ['stock-summary'] });
+      qc.invalidateQueries({ queryKey: ['financial'] });
+      qc.invalidateQueries({ queryKey: ['metrics'] });
+    },
+  });
+}
+
+// --- Tenant Settings ---
+export function useTenantSettings() {
+  return useQuery<{ tenant: any; settings: any }>({
+    queryKey: ['tenant-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/settings');
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+  });
+}
+
+export function useUpdateTenantSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await fetch('/api/dashboard/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update settings');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-settings'] });
+      qc.invalidateQueries({ queryKey: ['session'] });
+    },
+  });
+}
+
+// --- Suppliers ---
+export function useSuppliers() {
+  return useQuery<{ suppliers: any[] }>({
+    queryKey: ['suppliers'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/suppliers');
+      if (!res.ok) throw new Error('Failed to fetch suppliers');
+      return res.json();
+    },
+  });
+}
+
+export function useAddSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; phone?: string; email?: string; notes?: string }) => {
+      const res = await fetch('/api/dashboard/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to add supplier');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+  });
+}
+
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { id: number; name?: string; phone?: string; email?: string; notes?: string; active?: boolean }) => {
+      const res = await fetch('/api/dashboard/suppliers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update supplier');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+  });
+}
+
+export function useDeleteSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/dashboard/suppliers?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete supplier');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({

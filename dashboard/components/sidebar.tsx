@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag, Receipt, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/use-session';
@@ -14,6 +14,8 @@ const links = [
   { href: '/estoque', label: 'Estoque', icon: Package },
   { href: '/fichas-tecnicas', label: 'Fichas Técnicas', icon: ClipboardList },
   { href: '/consolidacao', label: 'Inventário', icon: ClipboardCheck },
+  { href: '/vendas', label: 'Vendas', icon: Receipt },
+  { href: '/fornecedores', label: 'Fornecedores', icon: Truck },
   { href: '/financeiro', label: 'Financeiro', icon: DollarSign, minRole: 'manager' as const },
   { href: '/desperdicios', label: 'Desperdícios', icon: Trash2 },
   { href: '/checklists', label: 'Checklists', icon: CheckSquare },

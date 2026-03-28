@@ -269,6 +269,55 @@ export const checklistRuns = pgTable('checklist_runs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Suppliers */
+export const suppliers = pgTable('suppliers', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  email: text('email'),
+  notes: text('notes'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Manual sales (for tenants without POS integration) */
+export const manualSales = pgTable('manual_sales', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id),
+  date: date('date').notNull(),
+  total: numeric('total', { precision: 10, scale: 2 }).notNull().default('0'),
+  paymentMethod: text('payment_method'), // 'dinheiro' | 'pix' | 'credito' | 'debito'
+  notes: text('notes'),
+  items: json('items').notNull(), // [{soldProductId, name, quantity, unitPrice, totalPrice}]
+  recordedBy: integer('recorded_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Tenant settings (API credentials, preferences) */
+export const tenantSettings = pgTable('tenant_settings', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id).unique(),
+  // PDV Legal credentials
+  pdvApiUrl: text('pdv_api_url'),
+  pdvUsername: text('pdv_username'),
+  pdvPassword: text('pdv_password'),
+  pdvClientId: text('pdv_client_id'),
+  pdvClientSecret: text('pdv_client_secret'),
+  pdvCodFilial: text('pdv_cod_filial'),
+  // Cardápio Web credentials
+  cardapioToken: text('cardapio_token'),
+  cardapioApiUrl: text('cardapio_api_url'),
+  // WhatsApp / Evolution API
+  evolutionApiUrl: text('evolution_api_url'),
+  evolutionApiKey: text('evolution_api_key'),
+  evolutionInstanceName: text('evolution_instance_name'),
+  // Preferences
+  timezone: text('timezone').notNull().default('America/Sao_Paulo'),
+  currency: text('currency').notNull().default('BRL'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Business locations/units */
 export const locations = pgTable('locations', {
   id: serial('id').primaryKey(),
