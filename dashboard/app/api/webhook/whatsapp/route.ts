@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements } from '@/lib/db/schema';
+import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements, tenants } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import {
   transcribeAudio,
@@ -12,6 +12,19 @@ import { handleConfirmation } from '@/lib/whatsapp/confirmation';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const VERIFY_WORDS = ['verificar', 'verify', 'ativar'];
+
+/**
+ * Resolve tenantId from Evolution instance name (e.g. 'tongo-burger-ze' → tenant with slug 'burger-ze').
+ * Returns null if not found or if instanceName doesn't match the tongo-{slug} pattern.
+ */
+async function resolveTenantFromInstance(instanceName: string | null): Promise<number | null> {
+  if (!instanceName) return null;
+  const slug = instanceName.startsWith('tongo-') ? instanceName.slice(6) : null;
+  if (!slug) return null;
+  const [tenant] = await db.select({ id: tenants.id }).from(tenants)
+    .where(eq(tenants.slug, slug)).limit(1);
+  return tenant?.id ?? null;
+}
 
 function extractPhone(data: any): string {
   const remoteJid = data?.data?.key?.remoteJid || data?.data?.remoteJid || '';
@@ -66,12 +79,14 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
  * Only returns verified + active senders.
  * Also returns the tenantId.
  */
-async function lookupSender(phone: string, isLid: boolean): Promise<{ replyPhone: string; senderName: string; tenantId: number } | null> {
+async function lookupSender(phone: string, isLid: boolean, scopeTenantId?: number | null): Promise<{ replyPhone: string; senderName: string; tenantId: number } | null> {
   if (isLid) {
+    const conditions = [eq(allowedSenders.lid, phone)];
+    if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
     const [byLid] = await db
       .select()
       .from(allowedSenders)
-      .where(eq(allowedSenders.lid, phone))
+      .where(and(...conditions))
       .limit(1);
     if (byLid && byLid.active && byLid.verificationStatus === 'verified') {
       return { replyPhone: byLid.phone, senderName: byLid.name, tenantId: byLid.tenantId };
@@ -79,10 +94,12 @@ async function lookupSender(phone: string, isLid: boolean): Promise<{ replyPhone
     return null;
   }
 
+  const conditions = [eq(allowedSenders.phone, phone)];
+  if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
   const [byPhone] = await db
     .select()
     .from(allowedSenders)
-    .where(eq(allowedSenders.phone, phone))
+    .where(and(...conditions))
     .limit(1);
   if (byPhone && byPhone.active && byPhone.verificationStatus === 'verified') {
     return { replyPhone: byPhone.phone, senderName: byPhone.name, tenantId: byPhone.tenantId };
@@ -103,6 +120,12 @@ export async function POST(request: NextRequest) {
     if (body.event !== 'messages.upsert') return NextResponse.json({ ok: true });
     if (isFromMe(body) || isGroupMessage(body)) return NextResponse.json({ ok: true });
 
+    // Resolve tenant from instanceName (query param or body)
+    const instanceNameParam = request.nextUrl.searchParams.get('instanceName')
+      || body?.instance?.instanceName
+      || null;
+    const instanceTenantId = await resolveTenantFromInstance(instanceNameParam);
+
     const phone = extractPhone(body);
     const fullRemoteJid = body?.data?.key?.remoteJid || '';
     const isLid = fullRemoteJid.includes('@lid');
@@ -118,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Look up sender (now returns tenantId)
-    const sender = await lookupSender(phone, isLid);
+    const sender = await lookupSender(phone, isLid, instanceTenantId);
     if (!sender) {
       console.log('[Webhook] Not allowed:', phone);
       return NextResponse.json({ ok: true });
