@@ -33,7 +33,7 @@ export default function RegistroPage() {
         setError(data.error || 'Erro ao cadastrar');
         return;
       }
-      router.push('/dashboard');
+      router.push('/');
     } catch {
       setError('Erro de conexao');
     } finally {
