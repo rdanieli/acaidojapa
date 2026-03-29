@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -131,6 +132,7 @@ const BUSINESS_TYPES = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -218,6 +220,8 @@ export default function OnboardingPage() {
       });
 
       if (!res.ok) throw new Error('Failed');
+      // Invalidate session cache so layout sees onboardingCompleted=true
+      await qc.invalidateQueries({ queryKey: ['session'] });
       router.push('/');
       router.refresh();
     } catch {
