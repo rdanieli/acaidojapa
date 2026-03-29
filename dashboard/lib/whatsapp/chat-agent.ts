@@ -294,7 +294,7 @@ REGRAS:
 
 // --- Main Handler ---
 
-export async function handleQuestion(phone: string, text: string): Promise<void> {
+export async function handleQuestion(phone: string, text: string, tenantId?: number): Promise<void> {
   try {
     // Step 1: Plan which queries to run
     const plan = await planQueries(text);
@@ -307,17 +307,17 @@ export async function handleQuestion(phone: string, text: string): Promise<void>
     const response = await generateResponse(text, data, plan.days);
 
     if (response) {
-      await sendMessage(phone, response);
+      await sendMessage(phone, response, tenantId);
     } else {
-      await sendFallbackResponse(phone);
+      await sendFallbackResponse(phone, tenantId);
     }
   } catch (error) {
     console.error('[ChatAgent] Error:', error);
-    await sendFallbackResponse(phone);
+    await sendFallbackResponse(phone, tenantId);
   }
 }
 
-async function sendFallbackResponse(phone: string): Promise<void> {
+async function sendFallbackResponse(phone: string, tenantId?: number): Promise<void> {
   try {
     const catalog = await db
       .select({ name: products.name, currentStock: products.currentStock, defaultUnit: products.defaultUnit })
@@ -328,8 +328,8 @@ async function sendFallbackResponse(phone: string): Promise<void> {
     for (const p of catalog) {
       lines.push(`- ${p.name}: ${Number(p.currentStock) || 0} ${p.defaultUnit}`);
     }
-    await sendMessage(phone, lines.join('\n'));
+    await sendMessage(phone, lines.join('\n'), tenantId);
   } catch {
-    await sendMessage(phone, 'Desculpa, não consegui buscar os dados agora. Tenta de novo em alguns minutos.');
+    await sendMessage(phone, 'Desculpa, não consegui buscar os dados agora. Tenta de novo em alguns minutos.', tenantId);
   }
 }

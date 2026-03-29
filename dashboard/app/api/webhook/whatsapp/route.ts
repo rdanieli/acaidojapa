@@ -53,7 +53,8 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
 
   await sendMessage(
     target.phone,
-    `Verificado! ${target.name}, seu acesso está ativo. Agora você pode enviar mensagens com itens de estoque ou fotos de notas fiscais.`
+    `Verificado! ${target.name}, seu acesso está ativo. Agora você pode enviar mensagens com itens de estoque ou fotos de notas fiscais.`,
+    target.tenantId
   );
 
   console.log(`[Webhook] Verified sender: ${target.name} (${target.phone}) → LID ${lid}`);
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
       const intent = await classifyIntent(textContent);
       if (intent === 'question') {
         const { handleQuestion } = await import('@/lib/whatsapp/chat-agent');
-        await handleQuestion(replyTo, textContent);
+        await handleQuestion(replyTo, textContent, tenantId);
         return NextResponse.json({ ok: true });
       }
     }
@@ -162,12 +163,12 @@ export async function POST(request: NextRequest) {
 
     if (hasImage) {
       source = 'image';
-      const { buffer, mimeType } = await downloadMedia(messageId);
+      const { buffer, mimeType } = await downloadMedia(messageId, tenantId);
       const base64 = buffer.toString('base64');
       result = await extractInventoryFromImage(base64, mimeType, catalog);
     } else if (hasAudio) {
       source = 'audio';
-      const { buffer } = await downloadMedia(messageId);
+      const { buffer } = await downloadMedia(messageId, tenantId);
       const transcription = await transcribeAudio(buffer);
       result = await extractInventoryFromText(transcription, catalog);
       result.raw_text = transcription;
@@ -183,7 +184,8 @@ export async function POST(request: NextRequest) {
     if (!result.items.length) {
       await sendMessage(
         replyTo,
-        'Não consegui identificar itens nessa mensagem. Tente enviar uma foto mais clara da nota ou descrever os itens (ex: "5 caixas de açaí, 3 pacotes de granola").'
+        'Não consegui identificar itens nessa mensagem. Tente enviar uma foto mais clara da nota ou descrever os itens (ex: "5 caixas de açaí, 3 pacotes de granola").',
+        tenantId
       );
       return NextResponse.json({ ok: true });
     }
@@ -317,7 +319,7 @@ export async function POST(request: NextRequest) {
     lines.push(`Entrada #${entry.id} registrada!\n\n${itemsList}${totalLine}\n\nResponda *ok* para confirmar ou *cancelar* para descartar.`);
 
     console.log('[Webhook] Sending confirmation for entry #' + entry.id);
-    await sendMessage(replyTo, lines.join('\n'));
+    await sendMessage(replyTo, lines.join('\n'), tenantId);
     console.log('[Webhook] Confirmation sent for entry #' + entry.id);
 
     return NextResponse.json({ ok: true, entryId: entry.id });

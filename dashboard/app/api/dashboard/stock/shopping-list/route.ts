@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     // Send to all recipients
     for (const recipient of recipients) {
       try {
-        await sendMessage(recipient.phone, message);
+        await sendMessage(recipient.phone, message, tenantId);
       } catch (err) {
         console.error(`Failed to send shopping list to ${recipient.phone}:`, err);
       }

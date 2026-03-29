@@ -31,7 +31,7 @@ export async function handleConfirmation(phone: string, text: string, tenantId?:
     .limit(1);
 
   if (!pending) {
-    await sendMessage(phone, 'Nenhuma entrada pendente encontrada.');
+    await sendMessage(phone, 'Nenhuma entrada pendente encontrada.', tenantId);
     return true;
   }
 
@@ -113,14 +113,14 @@ export async function handleConfirmation(phone: string, text: string, tenantId?:
     }
 
     const summary = items.map((i) => `  - ${i.productName}: ${i.quantity} ${i.unit}`).join('\n');
-    await sendMessage(phone, `Entrada #${pending.id} confirmada!\n\n${summary}`);
+    await sendMessage(phone, `Entrada #${pending.id} confirmada!\n\n${summary}`, effectiveTenantId);
   } else {
     await db
       .update(inventoryEntries)
       .set({ status: 'rejected' })
       .where(eq(inventoryEntries.id, pending.id));
 
-    await sendMessage(phone, `Entrada #${pending.id} cancelada.`);
+    await sendMessage(phone, `Entrada #${pending.id} cancelada.`, effectiveTenantId);
   }
 
   return true;

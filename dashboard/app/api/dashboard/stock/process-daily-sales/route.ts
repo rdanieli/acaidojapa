@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
         const message = lines.join('\n');
         for (const sender of senders) {
-          await sendMessage(sender.phone, message).catch(() => {});
+          await sendMessage(sender.phone, message, tenantId).catch(() => {});
         }
       }
     } catch {

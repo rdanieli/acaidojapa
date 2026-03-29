@@ -39,9 +39,11 @@ services:
       CARDAPIO_TOKEN: ${CARDAPIO_TOKEN}
       CARDAPIO_API_URL: ${CARDAPIO_API_URL}
       GROQ_API_KEY: ${GROQ_API_KEY}
-      EVOLUTION_API_URL: http://evolution:8080
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
-      EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-acaidojapa}
+      # No default Evolution instance — each tenant configures their own
+      # via Configurações > Integrações in the dashboard
+      EVOLUTION_API_URL: ""
+      EVOLUTION_API_KEY: ""
+      EVOLUTION_INSTANCE_NAME: ""
       CRON_SECRET: ${CRON_SECRET}
       WEBHOOK_SECRET: ""
     ports:

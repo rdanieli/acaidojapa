@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
     try {
       await sendMessage(
         normalized,
-        `Olá ${name}! Você foi autorizado a registrar entradas de estoque no sistema Tongo Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`
+        `Olá ${name}! Você foi autorizado a registrar entradas de estoque no sistema Tongo Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
+        tenantId
       );
     } catch (err) {
       console.error('[Senders API] Failed to send verification:', err);
@@ -67,7 +68,8 @@ export async function PUT(request: NextRequest) {
 
     await sendMessage(
       sender.phone,
-      `Olá ${sender.name}! Você foi autorizado a registrar entradas de estoque no sistema Tongo Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`
+      `Olá ${sender.name}! Você foi autorizado a registrar entradas de estoque no sistema Tongo Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
+      tenantId
     );
 
     return NextResponse.json({ ok: true });
