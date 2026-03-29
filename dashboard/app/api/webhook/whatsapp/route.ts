@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements } from '@/lib/db/schema';
+import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements, tenants } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import {
   transcribeAudio,
@@ -12,6 +12,19 @@ import { handleConfirmation } from '@/lib/whatsapp/confirmation';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const VERIFY_WORDS = ['verificar', 'verify', 'ativar'];
+
+/**
+ * Resolve tenantId from Evolution instance name (e.g. 'tongo-burger-ze' → tenant with slug 'burger-ze').
+ * Returns null if not found or if instanceName doesn't match the tongo-{slug} pattern.
+ */
+async function resolveTenantFromInstance(instanceName: string | null): Promise<number | null> {
+  if (!instanceName) return null;
+  const slug = instanceName.startsWith('tongo-') ? instanceName.slice(6) : null;
+  if (!slug) return null;
+  const [tenant] = await db.select({ id: tenants.id }).from(tenants)
+    .where(eq(tenants.slug, slug)).limit(1);
+  return tenant?.id ?? null;
+}
 
 function extractPhone(data: any): string {
   const remoteJid = data?.data?.key?.remoteJid || data?.data?.remoteJid || '';
@@ -44,11 +57,6 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
 
   if (pendingSenders.length === 0) return false;
 
-  // The verification message was sent to a specific phone number.
-  // When that person replies, it comes with a LID.
-  // We can't know which pending sender this LID belongs to if there are multiple.
-  // Strategy: if only 1 pending, auto-map. If multiple, we map sequentially.
-  // For safety: we map to the oldest pending sender (first added).
   const target = pendingSenders[0];
 
   await db
@@ -56,10 +64,10 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
     .set({ lid, verificationStatus: 'verified' })
     .where(eq(allowedSenders.id, target.id));
 
-  // Reply using the real phone number (we know it from the DB)
   await sendMessage(
     target.phone,
-    `Verificado! ${target.name}, seu acesso está ativo. Agora você pode enviar mensagens com itens de estoque ou fotos de notas fiscais.`
+    `Verificado! ${target.name}, seu acesso está ativo. Agora você pode enviar mensagens com itens de estoque ou fotos de notas fiscais.`,
+    target.tenantId
   );
 
   console.log(`[Webhook] Verified sender: ${target.name} (${target.phone}) → LID ${lid}`);
@@ -69,27 +77,32 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
 /**
  * Look up sender by LID or phone in the allowed_senders table.
  * Only returns verified + active senders.
+ * Also returns the tenantId.
  */
-async function lookupSender(phone: string, isLid: boolean) {
+async function lookupSender(phone: string, isLid: boolean, scopeTenantId?: number | null): Promise<{ replyPhone: string; senderName: string; tenantId: number } | null> {
   if (isLid) {
+    const conditions = [eq(allowedSenders.lid, phone)];
+    if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
     const [byLid] = await db
       .select()
       .from(allowedSenders)
-      .where(eq(allowedSenders.lid, phone))
+      .where(and(...conditions))
       .limit(1);
     if (byLid && byLid.active && byLid.verificationStatus === 'verified') {
-      return { replyPhone: byLid.phone, senderName: byLid.name };
+      return { replyPhone: byLid.phone, senderName: byLid.name, tenantId: byLid.tenantId };
     }
     return null;
   }
 
+  const conditions = [eq(allowedSenders.phone, phone)];
+  if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
   const [byPhone] = await db
     .select()
     .from(allowedSenders)
-    .where(eq(allowedSenders.phone, phone))
+    .where(and(...conditions))
     .limit(1);
   if (byPhone && byPhone.active && byPhone.verificationStatus === 'verified') {
-    return { replyPhone: byPhone.phone, senderName: byPhone.name };
+    return { replyPhone: byPhone.phone, senderName: byPhone.name, tenantId: byPhone.tenantId };
   }
   return null;
 }
@@ -107,6 +120,12 @@ export async function POST(request: NextRequest) {
     if (body.event !== 'messages.upsert') return NextResponse.json({ ok: true });
     if (isFromMe(body) || isGroupMessage(body)) return NextResponse.json({ ok: true });
 
+    // Resolve tenant from instanceName (query param or body)
+    const instanceNameParam = request.nextUrl.searchParams.get('instanceName')
+      || body?.instance?.instanceName
+      || null;
+    const instanceTenantId = await resolveTenantFromInstance(instanceNameParam);
+
     const phone = extractPhone(body);
     const fullRemoteJid = body?.data?.key?.remoteJid || '';
     const isLid = fullRemoteJid.includes('@lid');
@@ -121,15 +140,16 @@ export async function POST(request: NextRequest) {
       if (verified) return NextResponse.json({ ok: true });
     }
 
-    // 2. Look up sender
-    const sender = await lookupSender(phone, isLid);
+    // 2. Look up sender (now returns tenantId)
+    const sender = await lookupSender(phone, isLid, instanceTenantId);
     if (!sender) {
       console.log('[Webhook] Not allowed:', phone);
       return NextResponse.json({ ok: true });
     }
 
     const replyTo = sender.replyPhone;
-    console.log('[Webhook] Allowed! ReplyTo:', replyTo, 'Name:', sender.senderName);
+    const tenantId = sender.tenantId;
+    console.log('[Webhook] Allowed! ReplyTo:', replyTo, 'Name:', sender.senderName, 'TenantId:', tenantId);
 
     const message = body.data?.message;
     if (!message) return NextResponse.json({ ok: true });
@@ -140,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Check for inventory confirmation reply (ok/cancelar)
     if (textContent && !hasImage && !hasAudio) {
-      const handled = await handleConfirmation(replyTo, textContent);
+      const handled = await handleConfirmation(replyTo, textContent, tenantId);
       if (handled) return NextResponse.json({ ok: true });
     }
 
@@ -150,7 +170,7 @@ export async function POST(request: NextRequest) {
       const intent = await classifyIntent(textContent);
       if (intent === 'question') {
         const { handleQuestion } = await import('@/lib/whatsapp/chat-agent');
-        await handleQuestion(replyTo, textContent);
+        await handleQuestion(replyTo, textContent, tenantId);
         return NextResponse.json({ ok: true });
       }
     }
@@ -158,7 +178,7 @@ export async function POST(request: NextRequest) {
     console.log('[Webhook] Processing message from', replyTo);
 
     // 4. Load product catalog for AI matching
-    const catalog = await db.select().from(products).where(eq(products.active, true));
+    const catalog = await db.select().from(products).where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
     // 5. Process inventory message
     let result;
@@ -166,12 +186,12 @@ export async function POST(request: NextRequest) {
 
     if (hasImage) {
       source = 'image';
-      const { buffer, mimeType } = await downloadMedia(messageId);
+      const { buffer, mimeType } = await downloadMedia(messageId, tenantId);
       const base64 = buffer.toString('base64');
       result = await extractInventoryFromImage(base64, mimeType, catalog);
     } else if (hasAudio) {
       source = 'audio';
-      const { buffer } = await downloadMedia(messageId);
+      const { buffer } = await downloadMedia(messageId, tenantId);
       const transcription = await transcribeAudio(buffer);
       result = await extractInventoryFromText(transcription, catalog);
       result.raw_text = transcription;
@@ -187,23 +207,24 @@ export async function POST(request: NextRequest) {
     if (!result.items.length) {
       await sendMessage(
         replyTo,
-        'Não consegui identificar itens nessa mensagem. Tente enviar uma foto mais clara da nota ou descrever os itens (ex: "5 caixas de açaí, 3 pacotes de granola").'
+        'Não consegui identificar itens nessa mensagem. Tente enviar uma foto mais clara da nota ou descrever os itens (ex: "5 caixas de açaí, 3 pacotes de granola").',
+        tenantId
       );
       return NextResponse.json({ ok: true });
     }
 
-    // 6. Resolve product IDs — create new products for unmatched items
+    // 6. Resolve product IDs -- create new products for unmatched items
     for (const item of result.items) {
       if (item.matched_product_id) {
-        // Verify the matched ID exists
-        const [existing] = await db.select().from(products).where(eq(products.id, item.matched_product_id)).limit(1);
+        // Verify the matched ID exists for this tenant
+        const [existing] = await db.select().from(products).where(and(eq(products.id, item.matched_product_id), eq(products.tenantId, tenantId))).limit(1);
         if (!existing) item.matched_product_id = undefined;
       }
       if (!item.matched_product_id) {
         // Create new product in catalog
         const [newProduct] = await db
           .insert(products)
-          .values({ name: item.product_name, defaultUnit: item.unit })
+          .values({ tenantId, name: item.product_name, defaultUnit: item.unit })
           .onConflictDoUpdate({ target: products.name, set: { active: true } })
           .returning();
         item.matched_product_id = newProduct.id;
@@ -212,14 +233,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Auto-confirm any existing pending entries from this sender
-    //    (when they send multiple messages in a row without confirming)
     const pendingEntries = await db
       .select()
       .from(inventoryEntries)
       .where(
         and(
           eq(inventoryEntries.senderPhone, replyTo),
-          eq(inventoryEntries.status, 'pending')
+          eq(inventoryEntries.status, 'pending'),
+          eq(inventoryEntries.tenantId, tenantId)
         )
       );
 
@@ -236,7 +257,7 @@ export async function POST(request: NextRequest) {
         const qty = Number(item.quantity) || 0;
         if (qty <= 0) continue;
 
-        const [product] = await db.select().from(products).where(eq(products.id, item.productId));
+        const [product] = await db.select().from(products).where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
         if (!product) continue;
 
         const { convertToGrams, convertFromGrams } = await import('@/lib/stock/convert-units');
@@ -263,10 +284,11 @@ export async function POST(request: NextRequest) {
         await db.update(products).set({
           currentStock: sql`${products.currentStock}::numeric + ${String(stockIncrement)}::numeric`,
           ...(costPerUnit != null ? { costPerUnit } : {}),
-        }).where(eq(products.id, item.productId));
+        }).where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)));
 
         const quantityG = convertToGrams(qty, item.unit, unitWeightG);
         await db.insert(stockMovements).values({
+          tenantId,
           productId: item.productId,
           type: 'entrada',
           quantity: String(qty),
@@ -278,7 +300,7 @@ export async function POST(request: NextRequest) {
         });
 
         const { checkAndCreateAlerts } = await import('@/lib/stock/check-alerts');
-        await checkAndCreateAlerts(item.productId);
+        await checkAndCreateAlerts(item.productId, tenantId);
       }
 
       console.log(`[Webhook] Auto-confirmed entry #${pe.id} (new message arrived from same sender)`);
@@ -287,11 +309,12 @@ export async function POST(request: NextRequest) {
     // Save new entry
     const [entry] = await db
       .insert(inventoryEntries)
-      .values({ source, rawText: result.raw_text || null, senderPhone: replyTo, status: 'pending' })
+      .values({ tenantId, source, rawText: result.raw_text || null, senderPhone: replyTo, status: 'pending' })
       .returning();
 
     await db.insert(inventoryItems).values(
       result.items.map((item) => ({
+        tenantId,
         entryId: entry.id,
         productId: item.matched_product_id || null,
         productName: item.product_name,
@@ -319,7 +342,7 @@ export async function POST(request: NextRequest) {
     lines.push(`Entrada #${entry.id} registrada!\n\n${itemsList}${totalLine}\n\nResponda *ok* para confirmar ou *cancelar* para descartar.`);
 
     console.log('[Webhook] Sending confirmation for entry #' + entry.id);
-    await sendMessage(replyTo, lines.join('\n'));
+    await sendMessage(replyTo, lines.join('\n'), tenantId);
     console.log('[Webhook] Confirmation sent for entry #' + entry.id);
 
     return NextResponse.json({ ok: true, entryId: entry.id });

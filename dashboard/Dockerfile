@@ -34,6 +34,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+# Copy migration scripts (plain JS, runs with node)
+COPY --from=builder /app/scripts ./scripts
 
 USER nextjs
 

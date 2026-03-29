@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from '@/lib/db';
 import { orders, orderItems } from '@/lib/db/schema';
-import { eq, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { getCuponsForRange, cwGetOrdersHistory, cwGetOrder } from '@/lib/apis';
 import { normalizePdvCupom, normalizeCwOrder } from '@/lib/normalize';
 import { formatDateISO } from '@/lib/format';
@@ -16,11 +16,12 @@ interface SyncResult {
   errors: string[];
 }
 
-async function insertOrder(unified: UnifiedOrder, raw: any, date: string): Promise<boolean> {
+async function insertOrder(unified: UnifiedOrder, raw: any, date: string, tenantId: number): Promise<boolean> {
   try {
     const dt = unified.datetime ? new Date(unified.datetime) : new Date(`${date}T12:00:00-03:00`);
 
     const [order] = await db.insert(orders).values({
+      tenantId,
       externalId: unified.id,
       channel: unified.channel,
       displayId: unified.displayId,
@@ -39,6 +40,7 @@ async function insertOrder(unified: UnifiedOrder, raw: any, date: string): Promi
     if (unified.items.length > 0) {
       await db.insert(orderItems).values(
         unified.items.map(item => ({
+          tenantId,
           orderId: order.id,
           name: item.name,
           quantity: String(item.quantity),
@@ -56,23 +58,22 @@ async function insertOrder(unified: UnifiedOrder, raw: any, date: string): Promi
 
 /**
  * Sync orders from external APIs into local DB for a single date.
- * PDV: bulk fetch (fast). CW: fetch history list first, then only missing details.
  */
-export async function syncOrdersForDate(date: string): Promise<SyncResult> {
+export async function syncOrdersForDate(date: string, tenantId: number): Promise<SyncResult> {
   const errors: string[] = [];
   let pdvFetched = 0;
   let cwFetched = 0;
   let imported = 0;
   let skipped = 0;
 
-  // --- PDV (fast — single bulk API call) ---
+  // --- PDV (fast -- single bulk API call) ---
   try {
     const pdvCupons = await getCuponsForRange(date, date);
     if (Array.isArray(pdvCupons)) {
       pdvFetched = pdvCupons.length;
       for (const cupom of pdvCupons) {
         const unified = normalizePdvCupom(cupom);
-        const wasInserted = await insertOrder(unified, cupom, date);
+        const wasInserted = await insertOrder(unified, cupom, date, tenantId);
         if (wasInserted) imported++; else skipped++;
       }
     }
@@ -80,7 +81,7 @@ export async function syncOrdersForDate(date: string): Promise<SyncResult> {
     errors.push(`PDV: ${err.message}`);
   }
 
-  // --- CW (smart — check which orders we already have) ---
+  // --- CW (smart -- check which orders we already have) ---
   try {
     const historyResult = await cwGetOrdersHistory(date, date);
     const historyOrders = historyResult?.orders || [];
@@ -92,7 +93,7 @@ export async function syncOrdersForDate(date: string): Promise<SyncResult> {
       const existingRows = await db
         .select({ externalId: orders.externalId })
         .from(orders)
-        .where(inArray(orders.externalId, cwExternalIds));
+        .where(and(inArray(orders.externalId, cwExternalIds), eq(orders.tenantId, tenantId)));
       const existingSet = new Set(existingRows.map(r => r.externalId));
 
       // Only fetch details for missing orders
@@ -106,7 +107,7 @@ export async function syncOrdersForDate(date: string): Promise<SyncResult> {
         try {
           const detail = await cwGetOrder(summary.id);
           const unified = normalizeCwOrder(detail);
-          const wasInserted = await insertOrder(unified, detail, date);
+          const wasInserted = await insertOrder(unified, detail, date, tenantId);
           if (wasInserted) imported++; else skipped++;
         } catch (err: any) {
           errors.push(`CW order ${summary.id}: ${err.message}`);
@@ -123,7 +124,7 @@ export async function syncOrdersForDate(date: string): Promise<SyncResult> {
 /**
  * Sync orders for a date range. Processes day by day.
  */
-export async function syncOrdersForRange(start: string, end: string): Promise<{
+export async function syncOrdersForRange(start: string, end: string, tenantId: number): Promise<{
   totalImported: number;
   totalSkipped: number;
   days: SyncResult[];
@@ -138,7 +139,7 @@ export async function syncOrdersForRange(start: string, end: string): Promise<{
   const current = new Date(startDate);
   while (current <= endDate) {
     const dateStr = formatDateISO(current);
-    const result = await syncOrdersForDate(dateStr);
+    const result = await syncOrdersForDate(dateStr, tenantId);
     results.push(result);
     totalImported += result.imported;
     totalSkipped += result.skipped;
@@ -151,10 +152,11 @@ export async function syncOrdersForRange(start: string, end: string): Promise<{
 /**
  * Get the last synced date from the database.
  */
-export async function getLastSyncDate(): Promise<string | null> {
+export async function getLastSyncDate(tenantId: number): Promise<string | null> {
   const [latest] = await db
     .select({ date: orders.date })
     .from(orders)
+    .where(eq(orders.tenantId, tenantId))
     .orderBy(desc(orders.date))
     .limit(1);
   return latest?.date ?? null;

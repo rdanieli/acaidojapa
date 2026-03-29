@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { products, soldProducts, productNameAliases } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export type SizeTier = 'small' | 'medium' | 'large';
 
@@ -12,15 +12,21 @@ export interface ParsedOrderItem {
   unmatchedFragments: string[];
 }
 
-// In-memory caches
+// In-memory caches (keyed by tenantId)
 let aliasCache: Map<string, number> | null = null;
+let aliasCacheTenantId: number | null = null;
 let complementCache: Map<string, number> | null = null;
+let complementCacheTenantId: number | null = null;
 let soldProductCache: { id: number; name: string; sizeMl: number | null; category: string | null }[] | null = null;
+let soldProductCacheTenantId: number | null = null;
 
 export function clearParserCaches() {
   aliasCache = null;
+  aliasCacheTenantId = null;
   complementCache = null;
+  complementCacheTenantId = null;
   soldProductCache = null;
+  soldProductCacheTenantId = null;
 }
 
 function normalize(s: string): string {
@@ -32,19 +38,20 @@ function normalize(s: string): string {
     .trim();
 }
 
-async function loadAliasCache(): Promise<Map<string, number>> {
-  if (aliasCache) return aliasCache;
-  const aliases = await db.select().from(productNameAliases);
+async function loadAliasCache(tenantId: number): Promise<Map<string, number>> {
+  if (aliasCache && aliasCacheTenantId === tenantId) return aliasCache;
+  const aliases = await db.select().from(productNameAliases).where(eq(productNameAliases.tenantId, tenantId));
   aliasCache = new Map(aliases.map(a => [a.alias, a.soldProductId]));
+  aliasCacheTenantId = tenantId;
   return aliasCache;
 }
 
-async function loadComplementCache(): Promise<Map<string, number>> {
-  if (complementCache) return complementCache;
+async function loadComplementCache(tenantId: number): Promise<Map<string, number>> {
+  if (complementCache && complementCacheTenantId === tenantId) return complementCache;
   const complements = await db
     .select({ id: products.id, name: products.name, aliases: products.aliases })
     .from(products)
-    .where(eq(products.category, 'complemento'));
+    .where(and(eq(products.category, 'complemento'), eq(products.tenantId, tenantId)));
 
   complementCache = new Map();
   for (const c of complements) {
@@ -56,16 +63,18 @@ async function loadComplementCache(): Promise<Map<string, number>> {
       }
     }
   }
+  complementCacheTenantId = tenantId;
   return complementCache;
 }
 
-async function loadSoldProductCache() {
-  if (soldProductCache) return soldProductCache;
+async function loadSoldProductCache(tenantId: number) {
+  if (soldProductCache && soldProductCacheTenantId === tenantId) return soldProductCache;
   const sp = await db
     .select({ id: soldProducts.id, name: soldProducts.name, sizeMl: soldProducts.sizeMl, category: soldProducts.category })
     .from(soldProducts)
-    .where(eq(soldProducts.active, true));
+    .where(and(eq(soldProducts.active, true), eq(soldProducts.tenantId, tenantId)));
   soldProductCache = sp;
+  soldProductCacheTenantId = tenantId;
   return sp;
 }
 
@@ -97,30 +106,22 @@ export function mlToSizeTier(ml: number): SizeTier {
 
 /**
  * Detect category from item name.
- * "COPO 300 ML" → acai (PDV names for açaí cups are just "COPO")
- * "Açaí no Copo - 300ml" → acai
- * "Milk Shake - Copo 300ML" → milkshake
- * "SORVETE" → sorvete
  */
 function detectCategory(norm: string): string | null {
   if (norm.includes('milk') || norm.includes('milkshake') || norm.includes('milk shake')) return 'milkshake';
-  // PDV shorthand: "M MORANGO 300" = milkshake (M = milkshake, not "medium")
   if (/^m\s+/.test(norm)) return 'milkshake';
-  // PDV: "KINDER 300", "KINDER 400", "KINDER BUENO" = milkshake (but not "KINDER OVO" = revenda)
   if (/^kinder\b/.test(norm) && !norm.includes('ovo')) return 'milkshake';
   if (norm.includes('acai') || norm.includes('açai')) return 'acai';
   if (norm.includes('suco')) return 'suco';
   if (norm.includes('sorvete')) return 'sorvete';
-  // "KG" = sorvete sold by weight
   if (norm === 'kg') return 'sorvete';
-  // PDV uses "COPO XXX ML" for açaí cups (possibly followed by complements)
   if (/^copo\s+\d+\s*ml\b/.test(norm)) return 'acai';
   return null;
 }
 
 /** Find the best matching sold product */
-async function matchSoldProduct(text: string, sizeMl: number | null): Promise<number | null> {
-  const sp = await loadSoldProductCache();
+async function matchSoldProduct(text: string, sizeMl: number | null, tenantId: number): Promise<number | null> {
+  const sp = await loadSoldProductCache(tenantId);
   const category = detectCategory(text);
 
   if (!category) return null;
@@ -128,7 +129,6 @@ async function matchSoldProduct(text: string, sizeMl: number | null): Promise<nu
   const candidates = sp.filter(p => p.category === category);
   if (candidates.length === 0) return null;
 
-  // Try name-based match first (e.g., "kg" → "Sorvete KG")
   const normText = text.toLowerCase().trim();
   const nameMatch = candidates.find(p => p.name.toLowerCase().includes(normText));
   if (nameMatch) return nameMatch.id;
@@ -147,8 +147,8 @@ async function matchSoldProduct(text: string, sizeMl: number | null): Promise<nu
 }
 
 /** Match a complement fragment against known complements */
-async function matchComplement(fragment: string): Promise<number | null> {
-  const cache = await loadComplementCache();
+async function matchComplement(fragment: string, tenantId: number): Promise<number | null> {
+  const cache = await loadComplementCache(tenantId);
   const norm = normalize(fragment);
 
   if (cache.has(norm)) return cache.get(norm)!;
@@ -162,7 +162,6 @@ async function matchComplement(fragment: string): Promise<number | null> {
 
 /**
  * Noise words/fragments to ignore when parsing complements.
- * These appear in order item names but aren't actual complement names.
  */
 const NOISE_PATTERNS = [
   /^no\s+copo/,
@@ -203,11 +202,13 @@ function splitComplements(text: string): string[] {
 /**
  * Parse an order item name into its components.
  */
-export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem> {
+export async function parseOrderItem(itemName: string, tenantId?: number): Promise<ParsedOrderItem> {
+  // Default tenantId to 1 for backward compatibility
+  const tid = tenantId ?? 1;
   const norm = normalize(itemName);
 
   // 1. Check alias cache for fast soldProduct resolution
-  const aliases = await loadAliasCache();
+  const aliases = await loadAliasCache(tid);
   const aliasMatch = aliases.get(norm) ?? null;
 
   // 2. Extract size
@@ -215,7 +216,7 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
   const sizeTier = sizeMl ? mlToSizeTier(sizeMl) : null;
 
   // 3. Match base product (use alias if available, otherwise full match)
-  const soldProductId = aliasMatch ?? await matchSoldProduct(norm, sizeMl);
+  const soldProductId = aliasMatch ?? await matchSoldProduct(norm, sizeMl, tid);
 
   // 4. Extract and match complements
   const fragments = splitComplements(norm);
@@ -223,7 +224,7 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
   const unmatchedFragments: string[] = [];
 
   for (const frag of fragments) {
-    const compId = await matchComplement(frag);
+    const compId = await matchComplement(frag, tid);
     if (compId) {
       if (!complementProductIds.includes(compId)) {
         complementProductIds.push(compId);
@@ -237,11 +238,13 @@ export async function parseOrderItem(itemName: string): Promise<ParsedOrderItem>
   if (soldProductId && unmatchedFragments.length === 0) {
     try {
       await db.insert(productNameAliases).values({
+        tenantId: tid,
         alias: norm,
         soldProductId,
         source: 'auto',
       }).onConflictDoNothing();
       aliasCache = null;
+      aliasCacheTenantId = null;
     } catch {
       // Ignore
     }

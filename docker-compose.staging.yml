@@ -1,0 +1,98 @@
+services:
+  postgres-staging:
+    image: postgres:16-alpine
+    container_name: acaidojapa-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: acaidojapa
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: acaidojapa_staging
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acaidojapa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dashboard-staging:
+    image: ghcr.io/rdanieli/acaidojapa/dashboard:staging
+    container_name: acaidojapa-dashboard-staging
+    restart: unless-stopped
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    environment:
+      DASHBOARD_USER: ${DASHBOARD_USER}
+      DASHBOARD_PASS: ${DASHBOARD_PASS}
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://acaidojapa:${DB_PASSWORD}@postgres-staging:5432/acaidojapa_staging
+      PDV_API_URL: ${PDV_API_URL}
+      PDV_USERNAME: ${PDV_USERNAME}
+      PDV_PASSWORD: ${PDV_PASSWORD}
+      PDV_CLIENT_ID: ${PDV_CLIENT_ID}
+      PDV_CLIENT_SECRET: ${PDV_CLIENT_SECRET}
+      PDV_COD_FILIAL: ${PDV_COD_FILIAL}
+      CARDAPIO_TOKEN: ${CARDAPIO_TOKEN}
+      CARDAPIO_API_URL: ${CARDAPIO_API_URL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      # Centralized Evolution API — instances created automatically per tenant
+      EVOLUTION_API_URL: http://evolution-staging:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_STAGING:-tongo-staging-key-2026}
+      EVOLUTION_INSTANCE_NAME: ""
+      NEXT_PUBLIC_APP_URL: https://staging.japa.divinify.app
+      CRON_SECRET: ${CRON_SECRET}
+      WEBHOOK_SECRET: ""
+    ports:
+      - "127.0.0.1:3002:3001"
+
+  redis-staging:
+    image: redis:7-alpine
+    container_name: acaidojapa-redis-staging
+    restart: unless-stopped
+    volumes:
+      - redis_staging_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Evolution API for staging — separate from production
+  evolution-staging:
+    image: atendai/evolution-api:latest
+    container_name: acaidojapa-evolution-staging
+    restart: unless-stopped
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    environment:
+      - SERVER_URL=${EVOLUTION_STAGING_URL:-https://evolution-staging.divinify.app}
+      - SERVER_PORT=8080
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_STAGING:-tongo-staging-key-2026}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - DEL_INSTANCE=false
+      - LANGUAGE=pt-BR
+      - CONFIG_SESSION_PHONE_VERSION=${WA_VERSION:-2.3000.1035194821}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis-staging:6379
+      - CACHE_REDIS_PREFIX_KEY=evolution-staging
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://acaidojapa:${DB_PASSWORD}@postgres-staging:5432/evolution_api_staging
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api_staging
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+    ports:
+      - "127.0.0.1:8083:8080"
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:

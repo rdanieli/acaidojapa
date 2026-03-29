@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { products, stockMovements } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { convertFromGrams } from './convert-units';
 import { checkAndCreateAlerts } from './check-alerts';
 
@@ -13,16 +13,18 @@ export async function deductProductStock(
   productId: number,
   quantityG: number,
   referenceType: string,
+  tenantId: number,
   referenceId?: number,
   createdBy?: string,
 ) {
-  const [product] = await db.select().from(products).where(eq(products.id, productId));
+  const [product] = await db.select().from(products).where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
   if (!product) return null;
 
   const unitWeightG = product.unitWeightG ? Number(product.unitWeightG) : null;
   const stockDeduction = convertFromGrams(quantityG, product.defaultUnit, unitWeightG) ?? (quantityG / 1000);
 
   const [movement] = await db.insert(stockMovements).values({
+    tenantId,
     productId,
     type: 'saida_venda',
     quantity: String(stockDeduction),
@@ -38,9 +40,9 @@ export async function deductProductStock(
     .set({
       currentStock: sql`GREATEST(${products.currentStock}::numeric - ${String(stockDeduction)}::numeric, 0)`,
     })
-    .where(eq(products.id, productId));
+    .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
 
-  await checkAndCreateAlerts(productId);
+  await checkAndCreateAlerts(productId, tenantId);
 
   return movement;
 }

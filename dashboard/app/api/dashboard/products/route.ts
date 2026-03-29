@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalOrders } from '@/lib/local-orders';
+import { getTenantScope } from '@/lib/db/tenant';
 import type { UnifiedOrder } from '@/lib/types';
 
 interface ProductStats {
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const orders = await getLocalOrders(start, end, channel);
+    const { tenantId } = await getTenantScope();
+    const orders = await getLocalOrders(start, end, channel, tenantId);
     const completed = orders.filter((o) => o.status === 'completed');
     const prodMap = new Map<string, ProductStats>();
 

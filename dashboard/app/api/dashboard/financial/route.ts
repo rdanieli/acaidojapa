@@ -1,9 +1,10 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { orders, orderItems, soldProducts, recipes, products, complementGramages } from '@/lib/db/schema';
-import { and, gte, lte, eq, desc, inArray } from 'drizzle-orm';
+import { orders, orderItems, soldProducts, recipes, products, complementGramages, manualSales } from '@/lib/db/schema';
+import { and, gte, lte, eq, desc, inArray, sql } from 'drizzle-orm';
 import { parseOrderItem, clearParserCaches } from '@/lib/stock/parse-order-item';
+import { getTenantScope } from '@/lib/db/tenant';
 
 /** Cup total weight = sizeMl in grams (200ml cup = 200g total) */
 const CUP_WEIGHTS: Record<number, number> = {
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { tenantId } = await getTenantScope();
     clearParserCaches();
 
     // 1. Fetch completed orders in the period
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
       gte(orders.date, start),
       lte(orders.date, end),
       eq(orders.status, 'completed'),
+      eq(orders.tenantId, tenantId),
     ];
     if (channel === 'pdv') conditions.push(eq(orders.channel, 'pdv'));
     if (channel === 'online') conditions.push(eq(orders.channel, 'online'));
@@ -42,7 +45,16 @@ export async function GET(request: NextRequest) {
       .where(and(...conditions))
       .orderBy(desc(orders.datetime));
 
-    if (dbOrders.length === 0) {
+    // Check if we have manual sales even if no POS orders
+    const manualSalesCount = await db.select({ count: sql<number>`count(*)` }).from(manualSales)
+      .where(and(
+        eq(manualSales.tenantId, tenantId),
+        gte(manualSales.date, start),
+        lte(manualSales.date, end),
+      ));
+    const hasManualSales = Number(manualSalesCount[0]?.count) > 0;
+
+    if (dbOrders.length === 0 && !hasManualSales) {
       return NextResponse.json({
         revenue: 0,
         cmv: 0,
@@ -61,12 +73,12 @@ export async function GET(request: NextRequest) {
       .from(orderItems)
       .where(inArray(orderItems.orderId, orderIds));
 
-    // 3. Load sold products, recipes, product costs, complement gramages, and açaí product
+    // 3. Load sold products, recipes, product costs, complement gramages, and acai product
     const [soldProductRows, recipeRows, productRows, complementGramageRows] = await Promise.all([
-      db.select().from(soldProducts),
-      db.select().from(recipes),
-      db.select().from(products).where(eq(products.active, true)),
-      db.select().from(complementGramages),
+      db.select().from(soldProducts).where(eq(soldProducts.tenantId, tenantId)),
+      db.select().from(recipes).where(eq(recipes.tenantId, tenantId)),
+      db.select().from(products).where(and(eq(products.active, true), eq(products.tenantId, tenantId))),
+      db.select().from(complementGramages).where(eq(complementGramages.tenantId, tenantId)),
     ]);
 
     const soldProductMap = new Map<number, typeof soldProductRows[0]>();
@@ -74,7 +86,7 @@ export async function GET(request: NextRequest) {
       soldProductMap.set(sp.id, sp);
     }
 
-    // Build revenda product lookup: normalized aliases → { costPerUnit }
+    // Build revenda product lookup: normalized aliases -> { costPerUnit }
     const revendaProducts = productRows.filter(p => p.category === 'revenda');
     const revendaAliasMap = new Map<string, number>();
     for (const p of revendaProducts) {
@@ -112,7 +124,7 @@ export async function GET(request: NextRequest) {
       gramageMap.set(`${cg.productId}-${cg.sizeTier}`, Number(cg.quantityG));
     }
 
-    // Find açaí product ID
+    // Find acai product ID
     const acaiProduct = productRows.find(p => p.name === 'Açaí');
     const acaiProductId = acaiProduct?.id ?? null;
 
@@ -186,7 +198,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Parse item using the stock parser
-      const parsed = await parseOrderItem(item.name);
+      const parsed = await parseOrderItem(item.name, tenantId);
 
       if (!parsed.soldProductId) {
         // Try revenda fallback: match item name against revenda product aliases
@@ -255,7 +267,7 @@ export async function GET(request: NextRequest) {
       if (sp?.costPrice) {
         itemCmv = Number(sp.costPrice) * qty;
       }
-      // Priority 2: Dynamic CMV for açaí cups (has sizeMl and sizeTier)
+      // Priority 2: Dynamic CMV for acai cups (has sizeMl and sizeTier)
       else if (parsed.sizeMl && parsed.sizeTier) {
         const cupWeightG = CUP_WEIGHTS[parsed.sizeMl] || parsed.sizeMl;
 
@@ -271,7 +283,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Açaí polpa = cup weight - complements
+        // Acai polpa = cup weight - complements
         if (acaiProductId) {
           const polpaG = Math.max(cupWeightG - totalComplementsG, 0);
           if (polpaG > 0) {
@@ -306,6 +318,65 @@ export async function GET(request: NextRequest) {
           revenue: itemRevenue,
           cmv: itemCmv,
         });
+      }
+    }
+
+    // 6. Include manual sales in financial calculations
+    const manualSalesData = await db.select().from(manualSales)
+      .where(and(
+        eq(manualSales.tenantId, tenantId),
+        gte(manualSales.date, start),
+        lte(manualSales.date, end),
+      ));
+
+    for (const sale of manualSalesData) {
+      const saleDate = sale.date;
+      const saleItems = sale.items as any[];
+
+      for (const saleItem of saleItems) {
+        const qty = Number(saleItem.quantity) || 1;
+        const itemRevenue = qty * (Number(saleItem.unitPrice) || 0);
+        totalRevenue += itemRevenue;
+
+        // Track daily revenue
+        const daily = dailyMap.get(saleDate);
+        if (daily) {
+          daily.revenue += itemRevenue;
+        } else {
+          dailyMap.set(saleDate, { revenue: itemRevenue, cmv: 0 });
+        }
+
+        // Calculate CMV from recipe if soldProductId exists
+        let itemCmv = 0;
+        if (saleItem.soldProductId) {
+          const sp = soldProductMap.get(saleItem.soldProductId);
+          if (sp?.costPrice) {
+            itemCmv = Number(sp.costPrice) * qty;
+          } else {
+            itemCmv = getRecipeCost(saleItem.soldProductId) * qty;
+          }
+        }
+
+        totalCmv += itemCmv;
+        const dailyEntry = dailyMap.get(saleDate);
+        if (dailyEntry) dailyEntry.cmv += itemCmv;
+
+        // Track per-product stats
+        const productKey = saleItem.soldProductId ? `sp-${saleItem.soldProductId}` : `manual-${saleItem.name}`;
+        const existing = productStats.get(productKey);
+        if (existing) {
+          existing.qtySold += qty;
+          existing.revenue += itemRevenue;
+          existing.cmv += itemCmv;
+        } else {
+          productStats.set(productKey, {
+            soldProductId: saleItem.soldProductId || 0,
+            name: saleItem.name || 'Produto',
+            qtySold: qty,
+            revenue: itemRevenue,
+            cmv: itemCmv,
+          });
+        }
       }
     }
 

@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const PUBLIC_PATHS = [
+  '/landing',
   '/login',
+  '/registro',
   '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/session',
   '/api/webhook',
   // Cron-callable paths (auth checked in route handler via CRON_SECRET)
   '/api/dashboard/stock/process-daily-sales',
@@ -28,7 +32,8 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    // Unauthenticated users go to landing page instead of login
+    return NextResponse.redirect(new URL('/landing', request.url));
   }
 
   try {
@@ -36,7 +41,7 @@ export async function middleware(request: NextRequest) {
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch {
-    const response = NextResponse.redirect(new URL('/login', request.url));
+    const response = NextResponse.redirect(new URL('/landing', request.url));
     response.cookies.delete('auth-token');
     return response;
   }

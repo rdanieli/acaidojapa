@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { subDays, startOfWeek } from 'date-fns';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from '@/hooks/use-session';
 import type { DateRange } from 'react-day-picker';
 import { Sidebar, MobileNav } from '@/components/sidebar';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ChannelToggle, type Channel } from '@/components/channel-toggle';
+import { NotificationBell } from '@/components/notification-bell';
+import { QuickActions } from '@/components/quick-actions';
 import { DashboardContext } from './context';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: sessionData } = useSession();
+
   const [dateRange, setDateRange] = useState<DateRange>({
     from: subDays(new Date(), 6),
     to: new Date(),
   });
   const [channel, setChannel] = useState<Channel>('all');
+
+  useEffect(() => {
+    if (sessionData?.session?.tenant && !sessionData.session.tenant.onboardingCompleted && pathname !== '/onboarding') {
+      router.push('/onboarding');
+    }
+  }, [sessionData, pathname, router]);
 
   return (
     <DashboardContext.Provider
@@ -47,6 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 <ChannelToggle value={channel} onChange={setChannel} />
                 <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
               </div>
@@ -55,6 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </header>
 
           <main className="p-4 pb-20 md:p-6 md:pb-6">{children}</main>
+          <QuickActions />
         </div>
       </div>
     </DashboardContext.Provider>

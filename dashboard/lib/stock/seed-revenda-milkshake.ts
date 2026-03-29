@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { products, soldProducts } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 const REVENDA_PRODUCTS: { name: string; aliases: string; costPerUnit: string }[] = [
   { name: 'Água sem Gás 500ml', aliases: 'agua,agua sem gas,agua sem gas 500ml', costPerUnit: '1.10' },
@@ -32,7 +32,7 @@ const MILKSHAKE_SOLD_PRODUCTS: { name: string; sizeMl: number | null; costPrice:
 
 const SORVETE_KG_SOLD_PRODUCT = { name: 'Sorvete KG', sizeMl: null, costPrice: null };
 
-export async function seedRevendaAndMilkshake() {
+export async function seedRevendaAndMilkshake(tenantId: number) {
   let revendaCreated = 0;
   let revendaSkipped = 0;
   let milkshakeCreated = 0;
@@ -40,7 +40,7 @@ export async function seedRevendaAndMilkshake() {
 
   // Seed revenda products
   for (const p of REVENDA_PRODUCTS) {
-    const [existing] = await db.select().from(products).where(eq(products.name, p.name)).limit(1);
+    const [existing] = await db.select().from(products).where(and(eq(products.name, p.name), eq(products.tenantId, tenantId))).limit(1);
     if (existing) {
       // Update aliases and cost if product exists
       await db.update(products).set({
@@ -48,10 +48,11 @@ export async function seedRevendaAndMilkshake() {
         costPerUnit: p.costPerUnit,
         category: 'revenda',
         defaultUnit: 'un',
-      }).where(eq(products.id, existing.id));
+      }).where(and(eq(products.id, existing.id), eq(products.tenantId, tenantId)));
       revendaSkipped++;
     } else {
       await db.insert(products).values({
+        tenantId,
         name: p.name,
         aliases: p.aliases,
         costPerUnit: p.costPerUnit,
@@ -64,16 +65,17 @@ export async function seedRevendaAndMilkshake() {
 
   // Seed milkshake sold products
   for (const m of MILKSHAKE_SOLD_PRODUCTS) {
-    const [existing] = await db.select().from(soldProducts).where(eq(soldProducts.name, m.name)).limit(1);
+    const [existing] = await db.select().from(soldProducts).where(and(eq(soldProducts.name, m.name), eq(soldProducts.tenantId, tenantId))).limit(1);
     if (existing) {
       await db.update(soldProducts).set({
         sizeMl: m.sizeMl,
         costPrice: m.costPrice,
         category: 'milkshake',
-      }).where(eq(soldProducts.id, existing.id));
+      }).where(and(eq(soldProducts.id, existing.id), eq(soldProducts.tenantId, tenantId)));
       milkshakeSkipped++;
     } else {
       await db.insert(soldProducts).values({
+        tenantId,
         name: m.name,
         sizeMl: m.sizeMl,
         costPrice: m.costPrice,
@@ -84,9 +86,10 @@ export async function seedRevendaAndMilkshake() {
   }
 
   // Seed Sorvete KG sold product
-  const [existingSorveteKg] = await db.select().from(soldProducts).where(eq(soldProducts.name, SORVETE_KG_SOLD_PRODUCT.name)).limit(1);
+  const [existingSorveteKg] = await db.select().from(soldProducts).where(and(eq(soldProducts.name, SORVETE_KG_SOLD_PRODUCT.name), eq(soldProducts.tenantId, tenantId))).limit(1);
   if (!existingSorveteKg) {
     await db.insert(soldProducts).values({
+      tenantId,
       name: SORVETE_KG_SOLD_PRODUCT.name,
       sizeMl: SORVETE_KG_SOLD_PRODUCT.sizeMl,
       costPrice: SORVETE_KG_SOLD_PRODUCT.costPrice,

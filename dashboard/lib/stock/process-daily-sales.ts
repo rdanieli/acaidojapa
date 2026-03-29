@@ -15,7 +15,7 @@ import { deductProductStock } from './deduct-stock';
 import { getComplementsForItem, clearComplementCaches } from './extract-complements';
 import type { UnifiedOrder } from '@/lib/types';
 
-/** Açaí product ID in the products table (the base polpa) */
+/** Acai product ID in the products table (the base polpa) */
 const ACAI_PRODUCT_NAME = 'Açaí';
 
 /** Cup total weight = sizeMl in grams (200ml cup = 200g total) */
@@ -39,20 +39,21 @@ interface RunResult {
   status: 'completed' | 'failed';
 }
 
-async function getAcaiProductId(): Promise<number | null> {
+async function getAcaiProductId(tenantId: number): Promise<number | null> {
   const [p] = await db
     .select({ id: products.id })
     .from(products)
-    .where(eq(products.name, ACAI_PRODUCT_NAME))
+    .where(and(eq(products.name, ACAI_PRODUCT_NAME), eq(products.tenantId, tenantId)))
     .limit(1);
   return p?.id ?? null;
 }
 
-export async function processDailySales(date: string): Promise<RunResult> {
+export async function processDailySales(date: string, tenantId: number): Promise<RunResult> {
   clearParserCaches();
   clearComplementCaches();
 
   const [run] = await db.insert(dailyStockRuns).values({
+    tenantId,
     date,
     status: 'running',
   }).returning();
@@ -66,24 +67,24 @@ export async function processDailySales(date: string): Promise<RunResult> {
   try {
     // Step 1: Sync orders from external APIs into local DB
     try {
-      await syncOrdersForDate(date);
+      await syncOrdersForDate(date, tenantId);
     } catch (err: any) {
       errorDetails.push(`Sync error: ${err.message}`);
     }
 
     // Step 2: Read from local DB
-    const allOrders = await getLocalOrders(date, date);
+    const allOrders = await getLocalOrders(date, date, null, tenantId);
     const completedOrders = allOrders.filter(o => o.status === 'completed');
     const ordersFetched = completedOrders.length;
 
-    // Get açaí product ID once
-    const acaiProductId = await getAcaiProductId();
+    // Get acai product ID once
+    const acaiProductId = await getAcaiProductId(tenantId);
 
     // Build revenda alias set for skipping (no stock deduction needed)
     const revendaProducts = await db
       .select({ name: products.name, aliases: products.aliases })
       .from(products)
-      .where(eq(products.category, 'revenda'));
+      .where(and(eq(products.category, 'revenda'), eq(products.tenantId, tenantId)));
     const revendaAliases = new Set<string>();
     for (const p of revendaProducts) {
       revendaAliases.add(p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
@@ -97,7 +98,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
 
     // Build set of soldProduct categories that don't need stock deduction
     const noDeductCategories = new Set(['milkshake', 'sorvete']);
-    const soldProductRows = await db.select({ id: soldProducts.id, category: soldProducts.category }).from(soldProducts);
+    const soldProductRows = await db.select({ id: soldProducts.id, category: soldProducts.category }).from(soldProducts).where(eq(soldProducts.tenantId, tenantId));
     const soldProductCategoryMap = new Map<number, string | null>();
     for (const sp of soldProductRows) {
       soldProductCategoryMap.set(sp.id, sp.category);
@@ -119,7 +120,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
         const [existing] = await db
           .select()
           .from(processedOrders)
-          .where(eq(processedOrders.orderId, order.id))
+          .where(and(eq(processedOrders.orderId, order.id), eq(processedOrders.tenantId, tenantId)))
           .limit(1);
 
         if (existing) {
@@ -132,10 +133,10 @@ export async function processDailySales(date: string): Promise<RunResult> {
         for (let itemIdx = 0; itemIdx < order.items.length; itemIdx++) {
           const item = order.items[itemIdx];
           try {
-            const parsed = await parseOrderItem(item.name);
+            const parsed = await parseOrderItem(item.name, tenantId);
 
             if (!parsed.soldProductId) {
-              // Revenda items don't need stock deduction — skip silently
+              // Revenda items don't need stock deduction -- skip silently
               if (!isRevendaItem(item.name)) {
                 unmatchedItems.push(item.name);
               }
@@ -158,6 +159,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
               order.rawData,
               order.channel,
               itemIdx,
+              tenantId,
             );
 
             // --- Deduct complements and track total complement weight ---
@@ -172,6 +174,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
                     and(
                       eq(complementGramages.productId, compProductId),
                       eq(complementGramages.sizeTier, sizeTier),
+                      eq(complementGramages.tenantId, tenantId),
                     )
                   )
                   .limit(1);
@@ -184,6 +187,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
                     compProductId,
                     totalG,
                     'daily_processing',
+                    tenantId,
                     run.id,
                     'cron',
                   );
@@ -191,7 +195,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
               }
             }
 
-            // --- Deduct açaí polpa: cup weight - complements ---
+            // --- Deduct acai polpa: cup weight - complements ---
             if (acaiProductId && cupWeightG) {
               const polpaG = Math.max(cupWeightG - totalComplementsG, 0);
               if (polpaG > 0) {
@@ -200,6 +204,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
                   acaiProductId,
                   totalPolpaG,
                   'daily_processing',
+                  tenantId,
                   run.id,
                   'cron',
                 );
@@ -218,6 +223,7 @@ export async function processDailySales(date: string): Promise<RunResult> {
 
         // Mark order as processed
         await db.insert(processedOrders).values({
+          tenantId,
           orderId: order.id,
           date,
           itemCount: order.items.length,

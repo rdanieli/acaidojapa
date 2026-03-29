@@ -45,11 +45,13 @@ export async function getLocalOrders(
   start: string,
   end: string,
   channel?: string | null,
+  tenantId?: number,
 ): Promise<UnifiedOrder[]> {
   const conditions = [
     gte(orders.date, start),
     lte(orders.date, end),
   ];
+  if (tenantId != null) conditions.push(eq(orders.tenantId, tenantId));
   if (channel === 'pdv') conditions.push(eq(orders.channel, 'pdv'));
   if (channel === 'online') conditions.push(eq(orders.channel, 'online'));
 
@@ -82,11 +84,14 @@ export async function getLocalOrders(
 /**
  * Get a single order by its external ID (e.g., "pdv-123" or "cw-456").
  */
-export async function getLocalOrderById(externalId: string): Promise<UnifiedOrder | null> {
+export async function getLocalOrderById(externalId: string, tenantId?: number): Promise<UnifiedOrder | null> {
+  const conditions = [eq(orders.externalId, externalId)];
+  if (tenantId != null) conditions.push(eq(orders.tenantId, tenantId));
+
   const [order] = await db
     .select()
     .from(orders)
-    .where(eq(orders.externalId, externalId))
+    .where(and(...conditions))
     .limit(1);
 
   if (!order) return null;
@@ -102,10 +107,13 @@ export async function getLocalOrderById(externalId: string): Promise<UnifiedOrde
 /**
  * Check if we have local data for a date range.
  */
-export async function hasLocalData(start: string, end: string): Promise<boolean> {
+export async function hasLocalData(start: string, end: string, tenantId?: number): Promise<boolean> {
+  const conditions = [gte(orders.date, start), lte(orders.date, end)];
+  if (tenantId != null) conditions.push(eq(orders.tenantId, tenantId));
+
   const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(and(gte(orders.date, start), lte(orders.date, end)));
+    .where(and(...conditions));
   return (result?.count || 0) > 0;
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProductsCatalog, useUpdateProduct, useAddProduct, useDeleteProduct, useMergeProducts, useComplementGramages, useUpdateComplementGramages } from '@/hooks/use-dashboard';
+import { useProductsCatalog, useUpdateProduct, useAddProduct, useDeleteProduct, useMergeProducts, useComplementGramages, useUpdateComplementGramages, useStockHistory } from '@/hooks/use-dashboard';
+import { StockChart } from '@/components/stock/stock-chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, Pencil, Check, X, Search, ShoppingBasket, Merge, ChevronDown, ChevronRight, Scale } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X, Search, ShoppingBasket, Merge, ChevronDown, ChevronRight, Scale, TrendingUp } from 'lucide-react';
 
 const SIZE_TIERS = [
   { value: 'small', label: '200ml', color: 'text-blue-400' },
@@ -117,6 +118,7 @@ export function ProductsCatalog() {
   const [mergeSource, setMergeSource] = useState<any>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
   const [expandedGramages, setExpandedGramages] = useState<number | null>(null);
+  const [chartProductId, setChartProductId] = useState<number | null>(null);
 
   const products = data?.products ?? [];
   const filtered = products.filter((p: any) => {
@@ -387,6 +389,9 @@ export function ProductsCatalog() {
                             <button onClick={() => startEdit(p)} className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
+                            <button onClick={() => setChartProductId(chartProductId === p.id ? null : p.id)} className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-acai transition-colors">
+                              <TrendingUp className="h-3.5 w-3.5" />
+                            </button>
                             <button onClick={() => { setMergeSource(p); setMergeTargetId(''); }} className="p-1 rounded-md hover:bg-acai/15 text-muted-foreground/40 hover:text-acai transition-colors">
                               <Merge className="h-3.5 w-3.5" />
                             </button>
@@ -402,6 +407,17 @@ export function ProductsCatalog() {
                     <TableRow className="border-border/60 bg-muted/30">
                       <TableCell colSpan={9} className="py-0">
                         <GramagesEditor productId={p.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {chartProductId === p.id && (
+                    <TableRow className="border-border/60 bg-muted/30">
+                      <TableCell colSpan={9} className="py-3 px-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <TrendingUp className="h-3.5 w-3.5 text-muted-foreground/40" />
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/40">Histórico de Estoque (30 dias)</span>
+                        </div>
+                        <StockChart productId={p.id} minStock={p.minStock ? Number(p.minStock) : null} />
                       </TableCell>
                     </TableRow>
                   )}

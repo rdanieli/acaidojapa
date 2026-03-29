@@ -4,22 +4,24 @@ import { stockMovements, products } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { convertToGrams } from '@/lib/stock/convert-units';
 import { checkAndCreateAlerts } from '@/lib/stock/check-alerts';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
     const type = searchParams.get('type');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const conditions = [];
+    const conditions = [eq(stockMovements.tenantId, tenantId)];
     if (productId) conditions.push(eq(stockMovements.productId, Number(productId)));
     if (type) conditions.push(eq(stockMovements.type, type));
     if (startDate) conditions.push(gte(stockMovements.createdAt, new Date(startDate)));
     if (endDate) conditions.push(lte(stockMovements.createdAt, new Date(endDate)));
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const where = and(...conditions);
 
     const movements = await db
       .select({
@@ -51,12 +53,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
     const { productId, type, quantity, unit, notes } = await request.json();
     if (!productId || !type || !quantity || !unit) {
       return NextResponse.json({ error: 'productId, type, quantity, unit required' }, { status: 400 });
     }
 
-    const [product] = await db.select().from(products).where(eq(products.id, Number(productId)));
+    const [product] = await db.select().from(products).where(and(eq(products.id, Number(productId)), eq(products.tenantId, tenantId)));
     if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
     const qty = Number(quantity);
@@ -79,6 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Create movement
     const [movement] = await db.insert(stockMovements).values({
+      tenantId,
       productId: Number(productId),
       type,
       quantity: String(qty),
@@ -95,9 +99,9 @@ export async function POST(request: NextRequest) {
       .set({
         currentStock: sql`GREATEST(${products.currentStock}::numeric + ${String(stockDelta)}::numeric, 0)`,
       })
-      .where(eq(products.id, Number(productId)));
+      .where(and(eq(products.id, Number(productId)), eq(products.tenantId, tenantId)));
 
-    await checkAndCreateAlerts(Number(productId));
+    await checkAndCreateAlerts(Number(productId), tenantId);
 
     return NextResponse.json({ movement });
   } catch (error) {

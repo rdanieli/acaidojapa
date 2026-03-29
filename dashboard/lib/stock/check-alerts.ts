@@ -2,10 +2,14 @@ import { db } from '@/lib/db';
 import { products, stockAlerts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
-export async function checkAndCreateAlerts(productId: number): Promise<void> {
-  const [product] = await db.select().from(products).where(eq(products.id, productId));
+export async function checkAndCreateAlerts(productId: number, tenantId?: number): Promise<void> {
+  const conditions = [eq(products.id, productId)];
+  if (tenantId != null) conditions.push(eq(products.tenantId, tenantId));
+
+  const [product] = await db.select().from(products).where(and(...conditions));
   if (!product || !product.active) return;
 
+  const effectiveTenantId = tenantId ?? product.tenantId;
   const currentStock = Number(product.currentStock) || 0;
   const minStock = product.minStock ? Number(product.minStock) : null;
 
@@ -17,7 +21,8 @@ export async function checkAndCreateAlerts(productId: number): Promise<void> {
       .where(
         and(
           eq(stockAlerts.productId, productId),
-          eq(stockAlerts.status, 'active')
+          eq(stockAlerts.status, 'active'),
+          eq(stockAlerts.tenantId, effectiveTenantId)
         )
       );
     return;
@@ -41,7 +46,8 @@ export async function checkAndCreateAlerts(productId: number): Promise<void> {
       and(
         eq(stockAlerts.productId, productId),
         eq(stockAlerts.alertType, alertType),
-        eq(stockAlerts.status, 'active')
+        eq(stockAlerts.status, 'active'),
+        eq(stockAlerts.tenantId, effectiveTenantId)
       )
     )
     .limit(1);
@@ -50,6 +56,7 @@ export async function checkAndCreateAlerts(productId: number): Promise<void> {
 
   // Create new alert
   await db.insert(stockAlerts).values({
+    tenantId: effectiveTenantId,
     productId,
     alertType,
     currentStock: String(currentStock),

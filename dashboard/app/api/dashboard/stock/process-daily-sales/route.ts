@@ -1,44 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { dailyStockRuns, allowedSenders } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { dailyStockRuns, allowedSenders, tenants } from '@/lib/db/schema';
+import { desc, eq, and } from 'drizzle-orm';
 import { processDailySales } from '@/lib/stock/process-daily-sales';
 import { sendMessage } from '@/lib/whatsapp/evolution';
 import { formatDateISO } from '@/lib/format';
-
-function isAuthorized(request: NextRequest): boolean {
-  // Check CRON_SECRET bearer token
-  const authHeader = request.headers.get('authorization');
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
-      return true;
-    }
-  }
-  return false;
-}
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth: JWT middleware handles cookie auth, but for cron we need CRON_SECRET
-    // If we got here, either middleware passed (cookie auth) or it's a public path
-    // For cron, verify the secret
-    const isCookieAuth = request.cookies.has('auth-token');
-    if (!isCookieAuth && !isAuthorized(request)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
     }
 
     const body = await request.json().catch(() => ({}));
     const date = body.date || formatDateISO(new Date());
 
-    const result = await processDailySales(date);
+    const result = await processDailySales(date, tenantId);
 
     // Send WhatsApp summary to verified senders
     try {
       const senders = await db
         .select()
         .from(allowedSenders)
-        .where(eq(allowedSenders.verificationStatus, 'verified'));
+        .where(and(eq(allowedSenders.verificationStatus, 'verified'), eq(allowedSenders.tenantId, tenantId)));
 
       if (senders.length > 0) {
         const lines = [
@@ -60,7 +54,7 @@ export async function POST(request: NextRequest) {
 
         const message = lines.join('\n');
         for (const sender of senders) {
-          await sendMessage(sender.phone, message).catch(() => {});
+          await sendMessage(sender.phone, message, tenantId).catch(() => {});
         }
       }
     } catch {
@@ -76,12 +70,26 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '30', 10);
 
     const runs = await db
       .select()
       .from(dailyStockRuns)
+      .where(eq(dailyStockRuns.tenantId, tenantId))
       .orderBy(desc(dailyStockRuns.date))
       .limit(limit);
 

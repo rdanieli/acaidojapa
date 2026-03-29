@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalOrderById } from '@/lib/local-orders';
+import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET(
   _request: NextRequest,
@@ -8,7 +9,8 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const order = await getLocalOrderById(id);
+    const { tenantId } = await getTenantScope();
+    const order = await getLocalOrderById(id, tenantId);
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }

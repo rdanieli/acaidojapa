@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowDownCircle, ArrowUpCircle, RefreshCw, ClipboardCheck, Wrench } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { exportToCsv } from '@/lib/csv-export';
+import { ExportButton } from '@/components/export-button';
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   entrada: { label: 'Entrada', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20', icon: ArrowDownCircle },
@@ -34,6 +36,23 @@ export function StockMovementsTable() {
 
   const movements = data?.movements ?? [];
   const catalogProducts = catalogData?.products ?? [];
+
+  const handleExport = () => {
+    const headers = ['Data', 'Produto', 'Tipo', 'Quantidade', 'Unidade', 'Referência', 'Observações'];
+    const rows = movements.map((m: any) => {
+      const config = TYPE_CONFIG[m.type] || TYPE_CONFIG.ajuste;
+      return [
+        new Date(m.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        m.productName,
+        config.label,
+        m.quantity,
+        m.unit,
+        m.reference || '',
+        m.notes || '',
+      ];
+    });
+    exportToCsv('movimentacoes.csv', headers, rows);
+  };
 
   const handleAdd = () => {
     if (!addForm.productId || !addForm.quantity) return;
@@ -85,14 +104,17 @@ export function StockMovementsTable() {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <Button
-          onClick={() => setShowAdd(true)}
-          size="sm"
-          className="h-9 bg-acai hover:bg-acai/80 text-white text-xs ml-auto"
-        >
+        <div className="flex items-center gap-2 ml-auto">
+          <ExportButton onClick={handleExport} />
+          <Button
+            onClick={() => setShowAdd(true)}
+            size="sm"
+            className="h-9 bg-acai hover:bg-acai/80 text-white text-xs"
+          >
           <Plus className="h-3.5 w-3.5 mr-1" />
           Nova Movimentação
         </Button>
+        </div>
       </div>
 
       {movements.length === 0 ? (

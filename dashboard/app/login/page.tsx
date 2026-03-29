@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { IceCreamCone, Loader2 } from 'lucide-react';
+import { Store, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
@@ -58,30 +58,30 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center gap-3">
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl gradient-acai shadow-lg">
-              <IceCreamCone className="h-8 w-8 text-white" />
+              <Store className="h-8 w-8 text-white" />
               <div className="absolute inset-0 rounded-2xl bg-white/10" />
             </div>
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight gradient-text">
-                Açaí do Japa
+                Tongo Gestão
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Faça login para acessar o dashboard
+                Seu estoque mais inteligente
               </p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Usuário
+              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Email
               </Label>
               <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                autoComplete="username"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
+                autoComplete="email"
                 className="h-11 bg-muted/50 border-border focus:border-acai/50 focus:ring-acai/20 transition-all duration-200 placeholder:text-muted-foreground/50"
               />
             </div>
@@ -123,7 +123,8 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground/50">
-          Dashboard de vendas e operações
+          Não tem conta?{' '}
+          <a href="/registro" className="text-acai hover:underline">Cadastre-se</a>
         </p>
       </div>
     </div>

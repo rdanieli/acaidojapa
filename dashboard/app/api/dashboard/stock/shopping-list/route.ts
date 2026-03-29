@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { products, stockMovements, allowedSenders } from '@/lib/db/schema';
+import { products, stockMovements, allowedSenders, tenants } from '@/lib/db/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
+import { getTenantScope } from '@/lib/db/tenant';
 
 interface Suggestion {
   productId: number;
@@ -15,12 +16,12 @@ interface Suggestion {
   costEstimate: number | null;
 }
 
-async function generateSuggestions(): Promise<Suggestion[]> {
+async function generateSuggestions(tenantId: number): Promise<Suggestion[]> {
   // 1. Get all active products
   const activeProducts = await db
     .select()
     .from(products)
-    .where(eq(products.active, true));
+    .where(and(eq(products.active, true), eq(products.tenantId, tenantId)));
 
   // 2. Calculate average daily consumption over last 7 days
   const sevenDaysAgo = new Date();
@@ -35,7 +36,8 @@ async function generateSuggestions(): Promise<Suggestion[]> {
     .where(
       and(
         eq(stockMovements.type, 'saida_venda'),
-        gte(stockMovements.createdAt, sevenDaysAgo)
+        gte(stockMovements.createdAt, sevenDaysAgo),
+        eq(stockMovements.tenantId, tenantId)
       )
     )
     .groupBy(stockMovements.productId);
@@ -124,9 +126,22 @@ function formatWhatsAppMessage(suggestions: Suggestion[]): string {
   return lines.join('\n');
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const suggestions = await generateSuggestions();
+    const authHeader = request.headers.get('authorization');
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
+    }
+
+    const suggestions = await generateSuggestions(tenantId);
     return NextResponse.json({ suggestions });
   } catch (error: any) {
     console.error('Shopping list error:', error);
@@ -136,15 +151,20 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check: cron via Bearer token, or cookie auth (handled by middleware)
     const authHeader = request.headers.get('authorization');
     const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
-    if (!isCron) {
-      // Cookie auth — middleware handles verification, so we proceed
+    let tenantId: number;
+    if (isCron) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.active, true)).limit(1);
+      if (!tenant) return NextResponse.json({ error: 'No active tenant' }, { status: 404 });
+      tenantId = tenant.id;
+    } else {
+      const session = await getTenantScope();
+      tenantId = session.tenantId;
     }
 
-    const suggestions = await generateSuggestions();
+    const suggestions = await generateSuggestions(tenantId);
 
     if (suggestions.length === 0) {
       return NextResponse.json({
@@ -164,14 +184,15 @@ export async function POST(request: NextRequest) {
       .where(
         and(
           eq(allowedSenders.verificationStatus, 'verified'),
-          eq(allowedSenders.active, true)
+          eq(allowedSenders.active, true),
+          eq(allowedSenders.tenantId, tenantId)
         )
       );
 
     // Send to all recipients
     for (const recipient of recipients) {
       try {
-        await sendMessage(recipient.phone, message);
+        await sendMessage(recipient.phone, message, tenantId);
       } catch (err) {
         console.error(`Failed to send shopping list to ${recipient.phone}:`, err);
       }

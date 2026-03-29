@@ -1,33 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { tenants, tenantSettings } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { getTenantScope } from '@/lib/db/tenant';
+import {
+  createInstance,
+  configureWebhook,
+  getInstanceStatus,
+  connectInstance,
+  disconnectInstance,
+  instanceName,
+} from '@/lib/whatsapp/evolution-admin';
 
-const BASE_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8082';
-const API_KEY = process.env.EVOLUTION_API_KEY || '';
-const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || 'acaidojapa';
-
-function headers() {
-  return { 'Content-Type': 'application/json', apikey: API_KEY };
+/** Get the tenant's slug for instance naming */
+async function getTenantSlug(tenantId: number): Promise<string> {
+  const [tenant] = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  if (!tenant) throw new Error('Tenant not found');
+  return tenant.slug;
 }
 
-export async function GET() {
+/** Derive app base URL for webhook configuration */
+function getBaseUrl(request: NextRequest): string {
+  // Prefer explicit env var, fall back to request headers
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  const origin = request.headers.get('origin');
+  if (origin) return origin;
+  const referer = request.headers.get('referer');
+  if (referer) return new URL(referer).origin;
+  return 'https://staging.japa.divinify.app';
+}
+
+/** Auto-save Evolution config to tenantSettings so evolution.ts can send messages */
+async function saveEvolutionConfig(tenantId: number, instName: string) {
+  const apiUrl = process.env.EVOLUTION_API_URL || '';
+  const apiKey = process.env.EVOLUTION_API_KEY || '';
+
+  const [existing] = await db.select().from(tenantSettings)
+    .where(eq(tenantSettings.tenantId, tenantId)).limit(1);
+
+  if (existing) {
+    await db.update(tenantSettings).set({
+      evolutionApiUrl: apiUrl,
+      evolutionApiKey: apiKey,
+      evolutionInstanceName: instName,
+      updatedAt: new Date(),
+    }).where(eq(tenantSettings.tenantId, tenantId));
+  } else {
+    await db.insert(tenantSettings).values({
+      tenantId,
+      evolutionApiUrl: apiUrl,
+      evolutionApiKey: apiKey,
+      evolutionInstanceName: instName,
+    });
+  }
+}
+
+export async function GET(request: NextRequest) {
   try {
-    // Fetch instance info
-    const res = await fetch(`${BASE_URL}/instance/fetchInstances`, { headers: headers() });
-    if (!res.ok) return NextResponse.json({ status: 'error', message: 'Evolution API unreachable' }, { status: 502 });
+    const { tenantId } = await getTenantScope();
+    const slug = await getTenantSlug(tenantId);
 
-    const instances = await res.json();
-    const instance = (instances as any[]).find((i: any) => i.name === INSTANCE);
-
-    if (!instance) {
-      return NextResponse.json({ status: 'not_found', message: 'Instance not created' });
+    // Check if Evolution API is configured at all
+    if (!process.env.EVOLUTION_API_URL) {
+      return NextResponse.json({
+        status: 'not_configured',
+        message: 'WhatsApp não configurado neste ambiente',
+      });
     }
 
-    const connected = instance.connectionStatus === 'open';
+    const status = await getInstanceStatus(slug);
+
+    if (!status) {
+      return NextResponse.json({ status: 'not_found', message: 'Instância não criada ainda' });
+    }
+
+    const connected = status.status === 'open';
     return NextResponse.json({
       status: connected ? 'connected' : 'disconnected',
-      phone: instance.ownerJid?.replace('@s.whatsapp.net', '') || null,
-      profileName: instance.profileName || null,
-      profilePic: instance.profilePicUrl || null,
-      instanceName: instance.name,
+      phone: status.ownerJid?.replace('@s.whatsapp.net', '') || null,
+      profileName: status.profileName || null,
+      profilePic: status.profilePicUrl || null,
+      instanceName: status.instanceName,
     });
   } catch (error) {
     console.error('[WhatsApp API] Error:', error);
@@ -35,59 +88,46 @@ export async function GET() {
   }
 }
 
-// POST: generate QR code or disconnect
 export async function POST(request: NextRequest) {
   try {
+    const { tenantId } = await getTenantScope();
+    const slug = await getTenantSlug(tenantId);
     const { action } = await request.json();
 
+    if (!process.env.EVOLUTION_API_URL) {
+      return NextResponse.json({ error: 'WhatsApp não configurado neste ambiente' }, { status: 503 });
+    }
+
     if (action === 'connect') {
-      // Try to create instance if it doesn't exist
-      await fetch(`${BASE_URL}/instance/create`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ instanceName: INSTANCE, integration: 'WHATSAPP-BAILEYS', qrcode: true }),
-      });
+      const instName = instanceName(slug);
 
-      // Configure webhook automatically
-      const webhookUrl = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || '';
-      if (webhookUrl) {
-        await fetch(`${BASE_URL}/webhook/set/${INSTANCE}`, {
-          method: 'POST',
-          headers: headers(),
-          body: JSON.stringify({
-            webhook: {
-              enabled: true,
-              url: `${webhookUrl}/api/webhook/whatsapp`,
-              webhookByEvents: false,
-              webhookBase64: true,
-              events: ['MESSAGES_UPSERT'],
-            },
-          }),
-        });
+      // 1. Create instance (idempotent)
+      await createInstance(slug);
+
+      // 2. Configure webhook with tenant identification
+      const baseUrl = getBaseUrl(request);
+      await configureWebhook(slug, baseUrl);
+
+      // 3. Save config to tenantSettings so evolution.ts can send messages
+      await saveEvolutionConfig(tenantId, instName);
+
+      // 4. Get QR code
+      const qr = await connectInstance(slug);
+
+      if (qr.base64) {
+        return NextResponse.json({ qr: qr.base64, count: qr.count });
       }
-
-      // Get QR code
-      const qrRes = await fetch(`${BASE_URL}/instance/connect/${INSTANCE}`, { headers: headers() });
-      if (!qrRes.ok) return NextResponse.json({ error: 'Failed to connect' }, { status: 500 });
-
-      const data = await qrRes.json();
-      if (data.base64) {
-        return NextResponse.json({ qr: data.base64, count: data.count });
-      }
-      return NextResponse.json({ qr: null, count: data.count || 0, message: 'QR not ready yet, try again' });
+      return NextResponse.json({ qr: null, count: qr.count || 0, message: 'QR não pronto, tente novamente' });
     }
 
     if (action === 'disconnect') {
-      await fetch(`${BASE_URL}/instance/logout/${INSTANCE}`, {
-        method: 'DELETE',
-        headers: headers(),
-      });
+      await disconnectInstance(slug);
       return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error) {
+    return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+  } catch (error: any) {
     console.error('[WhatsApp API] Error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed' }, { status: 500 });
   }
 }
