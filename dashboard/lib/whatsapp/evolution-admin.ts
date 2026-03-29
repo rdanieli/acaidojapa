@@ -85,6 +85,34 @@ export async function configureWebhook(tenantSlug: string, baseUrl: string) {
 }
 
 /**
+ * Get instance status by exact name (for existing instances like 'acaidojapa')
+ */
+export async function getInstanceStatusByName(name: string) {
+  const res = await fetch(`${ADMIN_URL()}/instance/fetchInstances`, {
+    method: 'GET',
+    headers: adminHeaders(),
+  });
+
+  if (!res.ok) return null;
+
+  const instances = await res.json();
+  const list = Array.isArray(instances) ? instances : instances?.instances || [];
+  const instance = list.find(
+    (i: any) => i.name === name || i.instance?.instanceName === name || i.instanceName === name
+  );
+
+  if (!instance) return null;
+
+  return {
+    instanceName: name,
+    status: instance.connectionStatus || instance.instance?.connectionStatus || 'unknown',
+    ownerJid: instance.ownerJid || instance.instance?.ownerJid || null,
+    profileName: instance.profileName || instance.instance?.profileName || null,
+    profilePicUrl: instance.profilePicUrl || instance.instance?.profilePicUrl || null,
+  };
+}
+
+/**
  * Get instance status (connected, disconnected, etc.)
  */
 export async function getInstanceStatus(tenantSlug: string) {

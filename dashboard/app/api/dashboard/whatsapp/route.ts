@@ -7,6 +7,7 @@ import {
   createInstance,
   configureWebhook,
   getInstanceStatus,
+  getInstanceStatusByName,
   connectInstance,
   disconnectInstance,
   instanceName,
@@ -17,6 +18,13 @@ async function getTenantSlug(tenantId: number): Promise<string> {
   const [tenant] = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   if (!tenant) throw new Error('Tenant not found');
   return tenant.slug;
+}
+
+/** Get existing instance name from tenantSettings, or null if not set */
+async function getExistingInstanceName(tenantId: number): Promise<string | null> {
+  const [settings] = await db.select({ evolutionInstanceName: tenantSettings.evolutionInstanceName })
+    .from(tenantSettings).where(eq(tenantSettings.tenantId, tenantId)).limit(1);
+  return settings?.evolutionInstanceName || null;
 }
 
 /** Derive app base URL for webhook configuration */
@@ -68,7 +76,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const status = await getInstanceStatus(slug);
+    // Use existing instance name from settings (e.g. 'acaidojapa') or default to tongo-{slug}
+    const existingName = await getExistingInstanceName(tenantId);
+    const instSlug = existingName ? existingName.replace('tongo-', '') : slug;
+    const status = existingName
+      ? await getInstanceStatusByName(existingName)
+      : await getInstanceStatus(slug);
 
     if (!status) {
       return NextResponse.json({ status: 'not_found', message: 'Instância não criada ainda' });
