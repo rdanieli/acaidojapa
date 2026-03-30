@@ -164,7 +164,14 @@ export async function POST(request: NextRequest) {
       if (handled) return NextResponse.json({ ok: true });
     }
 
-    // 3.5 Check if this is a question (uses Groq to classify intent)
+    // 3.5 Check for admin commands (stock adjustments, price updates)
+    if (textContent && !hasImage && !hasAudio) {
+      const { handleAdminCommand } = await import('@/lib/whatsapp/admin-commands');
+      const wasCommand = await handleAdminCommand(replyTo, textContent, tenantId);
+      if (wasCommand) return NextResponse.json({ ok: true });
+    }
+
+    // 3.6 Check if this is a question (uses Groq to classify intent)
     if (textContent && !hasImage && !hasAudio) {
       const { classifyIntent } = await import('@/lib/whatsapp/intent-classifier');
       const intent = await classifyIntent(textContent);
