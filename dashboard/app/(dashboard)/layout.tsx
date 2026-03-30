@@ -24,8 +24,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [channel, setChannel] = useState<Channel>('all');
 
   useEffect(() => {
-    if (sessionData?.session?.tenant && !sessionData.session.tenant.onboardingCompleted && pathname !== '/onboarding') {
+    if (!sessionData?.session) return;
+    const session = sessionData.session;
+
+    // Redirect to onboarding if not completed
+    if (session.tenant && !session.tenant.onboardingCompleted && pathname !== '/onboarding') {
       router.push('/onboarding');
+      return;
+    }
+
+    // Redirect restricted employees away from unauthorized pages
+    const allowedModules = session.allowedModules as string[] | null;
+    if (allowedModules && session.role === 'employee' && pathname === '/') {
+      // Employee without dashboard access — redirect to first allowed module
+      const moduleToRoute: Record<string, string> = {
+        checklists: '/checklists', estoque: '/estoque', pedidos: '/pedidos',
+        produtos: '/produtos', vendas: '/vendas', fornecedores: '/fornecedores',
+        desperdicios: '/desperdicios', etiquetas: '/etiquetas', scanner: '/scanner',
+        'fichas-tecnicas': '/fichas-tecnicas', consolidacao: '/consolidacao',
+      };
+      const firstModule = allowedModules[0];
+      const route = moduleToRoute[firstModule] || `/${firstModule}`;
+      router.push(route);
     }
   }, [sessionData, pathname, router]);
 
