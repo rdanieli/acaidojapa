@@ -1030,6 +1030,40 @@ export function useStockHistory(productId: number | null, days = 30) {
   });
 }
 
+// --- Billing ---
+export function useBillingStatus() {
+  return useQuery<any>({
+    queryKey: ['billing-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/billing/status');
+      if (!res.ok) throw new Error('Failed to fetch billing status');
+      return res.json();
+    },
+  });
+}
+
+export function useSubscribe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (plan: string) => {
+      const res = await fetch('/api/billing/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to subscribe');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['billing-status'] });
+      qc.invalidateQueries({ queryKey: ['session'] });
+    },
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({

@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUsers, useCreateUser, useUpdateUser, useTenantSettings, useUpdateTenantSettings } from '@/hooks/use-dashboard';
+import { useUsers, useCreateUser, useUpdateUser, useTenantSettings, useUpdateTenantSettings, useBillingStatus, useSubscribe } from '@/hooks/use-dashboard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Settings, Plus, Pencil, Check, X, UserPlus, Users, Power, PowerOff, Link, Save, CheckCircle } from 'lucide-react';
+import { Settings, Plus, Pencil, Check, X, UserPlus, Users, Power, PowerOff, Link, Save, CheckCircle, CreditCard } from 'lucide-react';
 
 const ROLES = [
   { value: 'owner', label: 'Dono' },
@@ -237,8 +237,145 @@ function IntegrationsTab() {
   );
 }
 
+const PLANS = [
+  {
+    id: 'free',
+    name: 'Gratuito',
+    price: 0,
+    features: ['1 usuário', 'Dashboard básico', 'Controle de estoque', 'Relatórios limitados'],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: 49.90,
+    features: ['3 usuários', 'Dashboard completo', 'Controle de estoque', 'Integrações PDV', 'Relatórios avançados'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 99.90,
+    features: ['Usuários ilimitados', 'Dashboard completo', 'Controle de estoque', 'Integrações PDV + WhatsApp', 'Relatórios avançados', 'Suporte prioritário'],
+  },
+];
+
+function BillingTab() {
+  const { data, isLoading } = useBillingStatus();
+  const subscribe = useSubscribe();
+  const [subscribeError, setSubscribeError] = useState('');
+  const [subscribeSuccess, setSubscribeSuccess] = useState('');
+
+  const currentPlan = data?.plan || 'free';
+  const card = data?.card;
+
+  const handleSubscribe = async (planId: string) => {
+    setSubscribeError('');
+    setSubscribeSuccess('');
+    try {
+      await subscribe.mutateAsync(planId);
+      setSubscribeSuccess(`Plano ${PLANS.find(p => p.id === planId)?.name} ativado com sucesso!`);
+      setTimeout(() => setSubscribeSuccess(''), 4000);
+    } catch (err: any) {
+      setSubscribeError(err.message);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-40 w-full shimmer rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Current card */}
+      <div className="glass-card rounded-xl p-4 space-y-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-acai" />
+          Cartão cadastrado
+        </h3>
+        {card ? (
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-muted/50 border border-border">
+              <span className="text-xs font-bold text-muted-foreground uppercase">{card.brand || 'Card'}</span>
+            </div>
+            <div>
+              <p className="text-sm font-medium">**** **** **** {card.last4 || '****'}</p>
+              <p className="text-xs text-muted-foreground">{card.holderName || 'Titular'}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhum cartão cadastrado. Cadastre um cartão para assinar um plano.</p>
+        )}
+      </div>
+
+      {/* Plan cards */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Escolha seu plano</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PLANS.map((plan) => {
+            const isCurrent = currentPlan === plan.id;
+            return (
+              <div
+                key={plan.id}
+                className={cn(
+                  'glass-card rounded-xl p-5 space-y-4 transition-all',
+                  isCurrent ? 'ring-2 ring-acai/40 bg-acai/5' : '',
+                )}
+              >
+                <div>
+                  <h4 className="text-base font-bold">{plan.name}</h4>
+                  <p className="text-2xl font-bold mt-1">
+                    {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2).replace('.', ',')}`}
+                    {plan.price > 0 && <span className="text-xs font-normal text-muted-foreground">/mês</span>}
+                  </p>
+                </div>
+                <ul className="space-y-1.5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCurrent ? (
+                  <Badge className="bg-acai/15 text-acai border-acai/20 hover:bg-acai/15 w-full justify-center py-1">
+                    Plano atual
+                  </Badge>
+                ) : (
+                  <Button
+                    onClick={() => handleSubscribe(plan.id)}
+                    disabled={subscribe.isPending}
+                    className="w-full bg-acai hover:bg-acai/80 text-white text-sm"
+                    size="sm"
+                  >
+                    {subscribe.isPending ? 'Processando...' : 'Assinar'}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {subscribeError && (
+        <p className="text-sm text-red-500">{subscribeError}</p>
+      )}
+      {subscribeSuccess && (
+        <span className="text-sm text-emerald-600 flex items-center gap-1">
+          <CheckCircle className="h-4 w-4" />
+          {subscribeSuccess}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function ConfiguracoesPage() {
-  const [activeTab, setActiveTab] = useState<'users' | 'integrations'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'integrations' | 'billing'>('users');
 
   const { data, isLoading } = useUsers();
   const createUser = useCreateUser();
@@ -340,10 +477,24 @@ export default function ConfiguracoesPage() {
           <Link className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
           Integrações
         </button>
+        <button
+          onClick={() => setActiveTab('billing')}
+          className={cn(
+            'px-4 py-1.5 rounded-md text-sm font-medium transition-all',
+            activeTab === 'billing'
+              ? 'bg-white text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <CreditCard className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+          Plano
+        </button>
       </div>
 
       {/* Tab content */}
-      {activeTab === 'integrations' ? (
+      {activeTab === 'billing' ? (
+        <BillingTab />
+      ) : activeTab === 'integrations' ? (
         <IntegrationsTab />
       ) : (
         <>

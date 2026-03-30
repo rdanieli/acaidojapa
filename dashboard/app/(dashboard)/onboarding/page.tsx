@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Store, ArrowRight, ArrowLeft, Check, Package, ShoppingBag, Scale, IceCreamCone, Beef, CakeSlice, Coffee, UtensilsCrossed } from 'lucide-react';
+import { Store, ArrowRight, ArrowLeft, Check, Package, ShoppingBag, Scale, IceCreamCone, Beef, CakeSlice, Coffee, UtensilsCrossed, CreditCard } from 'lucide-react';
 
 // Business type presets
 const BUSINESS_TYPES = [
@@ -152,6 +152,15 @@ export default function OnboardingPage() {
   // Step 3: Gramages (only for açaiteria)
   const [gramages, setGramages] = useState<Record<string, { small: string; medium: string; large: string }>>({});
 
+  // Card step
+  const [cardForm, setCardForm] = useState({
+    holderName: '', number: '', expiryMonth: '', expiryYear: '', ccv: '',
+    cpfCnpj: '', postalCode: '', phone: '', addressNumber: '',
+  });
+  const [cardSaved, setCardSaved] = useState(false);
+  const [cardError, setCardError] = useState('');
+  const [cardLoading, setCardLoading] = useState(false);
+
   const selectBusinessType = (id: string) => {
     const p = BUSINESS_TYPES.find(b => b.id === id)!;
     setBusinessType(id);
@@ -186,7 +195,44 @@ export default function OnboardingPage() {
     }));
   };
 
-  const totalSteps = preset?.hasGramages ? 4 : 3;
+  const handleSaveCard = async () => {
+    setCardError('');
+    setCardLoading(true);
+    try {
+      const res = await fetch('/api/billing/tokenize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          card: {
+            holderName: cardForm.holderName,
+            number: cardForm.number,
+            expiryMonth: cardForm.expiryMonth,
+            expiryYear: cardForm.expiryYear,
+            ccv: cardForm.ccv,
+          },
+          holderInfo: {
+            name: cardForm.holderName,
+            cpfCnpj: cardForm.cpfCnpj,
+            postalCode: cardForm.postalCode,
+            addressNumber: cardForm.addressNumber || '0',
+            phone: cardForm.phone,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar cartão');
+      }
+      setCardSaved(true);
+    } catch (err: any) {
+      setCardError(err.message);
+    } finally {
+      setCardLoading(false);
+    }
+  };
+
+  const totalSteps = preset?.hasGramages ? 5 : 4;
+  const cardStep = preset?.hasGramages ? 4 : 3;
   const confirmStep = totalSteps - 1;
 
   const handleFinish = async () => {
@@ -418,6 +464,77 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {/* Card step */}
+        {step === cardStep && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Método de pagamento</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cadastre seu cartão de crédito. Nenhuma cobrança será feita agora — você começa no plano gratuito.
+              </p>
+            </div>
+
+            {cardSaved ? (
+              <div className="text-center py-4">
+                <div className="flex justify-center mb-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
+                    <Check className="h-6 w-6 text-emerald-400" />
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-emerald-400">Cartão salvo com sucesso!</p>
+                <p className="text-xs text-muted-foreground mt-1">Nenhuma cobrança foi realizada.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-xs text-muted-foreground">Nome no cartão</label>
+                    <Input value={cardForm.holderName} onChange={e => setCardForm({...cardForm, holderName: e.target.value})} placeholder="JOÃO DA SILVA" className="mt-1" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-muted-foreground">Número do cartão</label>
+                    <Input value={cardForm.number} onChange={e => setCardForm({...cardForm, number: e.target.value})} placeholder="0000 0000 0000 0000" className="mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Validade</label>
+                    <div className="flex gap-2 mt-1">
+                      <Input value={cardForm.expiryMonth} onChange={e => setCardForm({...cardForm, expiryMonth: e.target.value})} placeholder="MM" className="w-16 text-center" maxLength={2} />
+                      <span className="self-center text-muted-foreground">/</span>
+                      <Input value={cardForm.expiryYear} onChange={e => setCardForm({...cardForm, expiryYear: e.target.value})} placeholder="AAAA" className="w-20 text-center" maxLength={4} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">CVV</label>
+                    <Input value={cardForm.ccv} onChange={e => setCardForm({...cardForm, ccv: e.target.value})} placeholder="123" className="mt-1 w-20" maxLength={4} type="password" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-muted-foreground">CPF/CNPJ do titular</label>
+                    <Input value={cardForm.cpfCnpj} onChange={e => setCardForm({...cardForm, cpfCnpj: e.target.value})} placeholder="000.000.000-00" className="mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">CEP</label>
+                    <Input value={cardForm.postalCode} onChange={e => setCardForm({...cardForm, postalCode: e.target.value})} placeholder="00000-000" className="mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Telefone</label>
+                    <Input value={cardForm.phone} onChange={e => setCardForm({...cardForm, phone: e.target.value})} placeholder="(00) 00000-0000" className="mt-1" />
+                  </div>
+                </div>
+
+                {cardError && <p className="text-sm text-red-400">{cardError}</p>}
+
+                <Button onClick={handleSaveCard} disabled={cardLoading || !cardForm.number || !cardForm.holderName || !cardForm.cpfCnpj} className="w-full bg-acai hover:bg-acai/80 text-white">
+                  {cardLoading ? 'Salvando...' : 'Salvar cartão'}
+                </Button>
+
+                <p className="text-[10px] text-muted-foreground/40 text-center">
+                  Seus dados são processados de forma segura pelo Asaas. Nenhuma cobrança será feita agora.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Confirm step */}
         {step === confirmStep + 1 && (
           <div className="space-y-4 text-center py-4">
@@ -450,7 +567,7 @@ export default function OnboardingPage() {
         {step <= confirmStep ? (
           <Button
             onClick={() => setStep(s => s + 1)}
-            disabled={step === 0 && !businessType}
+            disabled={(step === 0 && !businessType) || (step === cardStep && !cardSaved)}
             className="bg-acai hover:bg-acai/80 text-white"
           >
             Próximo
