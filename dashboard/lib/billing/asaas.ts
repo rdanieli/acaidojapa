@@ -46,12 +46,22 @@ export interface CreateCustomerParams {
   externalReference?: string;
 }
 
+/** Format phone: Asaas wants 10 digits (DDD + 8 digits) for mobilePhone */
+function formatPhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  const digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present
+  const cleaned = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+  // Asaas wants 10-11 digits
+  return cleaned.length >= 10 ? cleaned : undefined;
+}
+
 export async function createCustomer(params: CreateCustomerParams) {
   return asaasRequest('POST', '/customers', {
     name: params.name,
     cpfCnpj: params.cpfCnpj.replace(/\D/g, ''),
     email: params.email,
-    mobilePhone: params.phone?.replace(/\D/g, '') || undefined,
+    mobilePhone: formatPhone(params.phone),
     externalReference: params.externalReference,
     notificationDisabled: false,
   });
@@ -106,7 +116,7 @@ export async function tokenizeCard(
       cpfCnpj: holderInfo.cpfCnpj.replace(/\D/g, ''),
       postalCode: holderInfo.postalCode.replace(/\D/g, ''),
       addressNumber: holderInfo.addressNumber,
-      phone: holderInfo.phone.replace(/\D/g, ''),
+      phone: formatPhone(holderInfo.phone) || holderInfo.phone.replace(/\D/g, ''),
     },
   });
 }
