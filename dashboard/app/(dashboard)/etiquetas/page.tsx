@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useProductsCatalog } from '@/hooks/use-dashboard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tag, Printer } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
 
 const printStyles = `
   @media print {
@@ -22,6 +23,7 @@ const printStyles = `
     }
     .label-item .product-name { font-size: 10pt; font-weight: bold; }
     .label-item .label-info { font-size: 8pt; }
+    .label-item .label-barcode svg { width: 100%; max-height: 30px; }
   }
 `;
 
@@ -29,6 +31,35 @@ function formatDate(dateStr: string) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function BarcodeDisplay({ value }: { value: string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    if (svgRef.current && value) {
+      try {
+        JsBarcode(svgRef.current, value, {
+          format: 'EAN13',
+          width: 1.5,
+          height: 40,
+          displayValue: true,
+          fontSize: 10,
+          margin: 2,
+        });
+      } catch {
+        // Fallback for non-EAN13 codes
+        JsBarcode(svgRef.current, value, {
+          format: 'CODE128',
+          width: 1.5,
+          height: 40,
+          displayValue: true,
+          fontSize: 10,
+          margin: 2,
+        });
+      }
+    }
+  }, [value]);
+  return <svg ref={svgRef} />;
 }
 
 export default function EtiquetasPage() {
@@ -43,8 +74,39 @@ export default function EtiquetasPage() {
   const [expiryDate, setExpiryDate] = useState('');
   const [lote, setLote] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [barcode, setBarcode] = useState<string | null>(null);
 
   const selectedProduct = products.find((p: any) => String(p.id) === selectedProductId);
+
+  // Auto-generate barcode when product is selected
+  const ensureBarcode = useCallback(async (product: any) => {
+    if (!product) {
+      setBarcode(null);
+      return;
+    }
+    if (product.barcode) {
+      setBarcode(product.barcode);
+      return;
+    }
+    // Generate barcode via API
+    try {
+      const res = await fetch('/api/dashboard/barcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBarcode(data.barcode);
+      }
+    } catch {
+      // silently fail - label will render without barcode
+    }
+  }, []);
+
+  useEffect(() => {
+    ensureBarcode(selectedProduct);
+  }, [selectedProductId, selectedProduct, ensureBarcode]);
 
   const handlePrint = () => {
     window.print();
@@ -221,6 +283,11 @@ export default function EtiquetasPage() {
                       <p>Data: {formatDate(fabricationDate)}</p>
                     </div>
                   )}
+                  {barcode && (
+                    <div className="mt-2">
+                      <BarcodeDisplay value={barcode} />
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {quantity} etiqueta{quantity > 1 ? 's' : ''} sera{quantity > 1 ? 'o' : ''} impressa{quantity > 1 ? 's' : ''}
@@ -244,6 +311,11 @@ export default function EtiquetasPage() {
               ) : (
                 <div className="label-info">
                   <div>Data: {formatDate(fabricationDate)}</div>
+                </div>
+              )}
+              {barcode && (
+                <div className="label-barcode">
+                  <BarcodeDisplay value={barcode} />
                 </div>
               )}
             </div>

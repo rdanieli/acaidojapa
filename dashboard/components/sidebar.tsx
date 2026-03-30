@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag, Receipt, Truck } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag, Receipt, Truck, Scan } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/use-session';
@@ -20,6 +20,7 @@ const links = [
   { href: '/desperdicios', label: 'Desperdícios', icon: Trash2 },
   { href: '/checklists', label: 'Checklists', icon: CheckSquare },
   { href: '/etiquetas', label: 'Etiquetas', icon: Tag },
+  { href: '/scanner', label: 'Scanner', icon: Scan },
   { href: '/configuracoes', label: 'Configurações', icon: Settings, minRole: 'manager' as const },
 ];
 
