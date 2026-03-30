@@ -41,8 +41,6 @@ export function Sidebar() {
     if (l.minRole && roleHierarchy[role] < roleHierarchy[l.minRole]) return false;
     // Module check: owner/manager see all, employees see only allowed modules
     if (allowedModules && role === 'employee') {
-      // Always show dashboard
-      if (l.module === 'dashboard') return true;
       return allowedModules.includes(l.module);
     }
     return true;
@@ -122,7 +120,6 @@ export function MobileNav() {
   const visibleLinks = links.filter(l => {
     if (l.minRole && roleHierarchy[role] < roleHierarchy[l.minRole]) return false;
     if (allowedModules && role === 'employee') {
-      if (l.module === 'dashboard') return true;
       return allowedModules.includes(l.module);
     }
     return true;
