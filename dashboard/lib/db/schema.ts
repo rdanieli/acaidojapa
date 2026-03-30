@@ -26,6 +26,7 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('employee'), // 'owner' | 'manager' | 'employee'
+  allowedModules: json('allowed_modules'), // string[] e.g. ['checklists','scanner'] — null = all for role
   phone: text('phone'),
   active: boolean('active').notNull().default(true),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),

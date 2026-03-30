@@ -8,21 +8,24 @@ import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/use-session';
 
 const links = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/pedidos', label: 'Pedidos', icon: ShoppingBag },
-  { href: '/produtos', label: 'Produtos', icon: BarChart3 },
-  { href: '/estoque', label: 'Estoque', icon: Package },
-  { href: '/fichas-tecnicas', label: 'Fichas Técnicas', icon: ClipboardList },
-  { href: '/consolidacao', label: 'Inventário', icon: ClipboardCheck },
-  { href: '/vendas', label: 'Vendas', icon: Receipt },
-  { href: '/fornecedores', label: 'Fornecedores', icon: Truck },
-  { href: '/financeiro', label: 'Financeiro', icon: DollarSign, minRole: 'manager' as const },
-  { href: '/desperdicios', label: 'Desperdícios', icon: Trash2 },
-  { href: '/checklists', label: 'Checklists', icon: CheckSquare },
-  { href: '/etiquetas', label: 'Etiquetas', icon: Tag },
-  { href: '/scanner', label: 'Scanner', icon: Scan },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings, minRole: 'manager' as const },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard, module: 'dashboard' },
+  { href: '/pedidos', label: 'Pedidos', icon: ShoppingBag, module: 'pedidos' },
+  { href: '/produtos', label: 'Produtos', icon: BarChart3, module: 'produtos' },
+  { href: '/estoque', label: 'Estoque', icon: Package, module: 'estoque' },
+  { href: '/fichas-tecnicas', label: 'Fichas Técnicas', icon: ClipboardList, module: 'fichas-tecnicas' },
+  { href: '/consolidacao', label: 'Inventário', icon: ClipboardCheck, module: 'consolidacao' },
+  { href: '/vendas', label: 'Vendas', icon: Receipt, module: 'vendas' },
+  { href: '/fornecedores', label: 'Fornecedores', icon: Truck, module: 'fornecedores' },
+  { href: '/financeiro', label: 'Financeiro', icon: DollarSign, module: 'financeiro', minRole: 'manager' as const },
+  { href: '/desperdicios', label: 'Desperdícios', icon: Trash2, module: 'desperdicios' },
+  { href: '/checklists', label: 'Checklists', icon: CheckSquare, module: 'checklists' },
+  { href: '/etiquetas', label: 'Etiquetas', icon: Tag, module: 'etiquetas' },
+  { href: '/scanner', label: 'Scanner', icon: Scan, module: 'scanner' },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings, module: 'configuracoes', minRole: 'manager' as const },
 ];
+
+/** All module IDs for the permission UI */
+export const ALL_MODULES = links.map(l => ({ id: l.module, label: l.label }));
 
 const roleHierarchy: Record<string, number> = { owner: 3, manager: 2, employee: 1 };
 
@@ -32,7 +35,18 @@ export function Sidebar() {
   const { data: sessionData } = useSession();
   const role = sessionData?.session?.role || 'employee';
   const tenantName = sessionData?.session?.tenant?.name || 'Dashboard';
-  const visibleLinks = links.filter(l => !l.minRole || roleHierarchy[role] >= roleHierarchy[l.minRole]);
+  const allowedModules = sessionData?.session?.allowedModules as string[] | null;
+  const visibleLinks = links.filter(l => {
+    // Role check
+    if (l.minRole && roleHierarchy[role] < roleHierarchy[l.minRole]) return false;
+    // Module check: owner/manager see all, employees see only allowed modules
+    if (allowedModules && role === 'employee') {
+      // Always show dashboard
+      if (l.module === 'dashboard') return true;
+      return allowedModules.includes(l.module);
+    }
+    return true;
+  });
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -104,7 +118,15 @@ export function MobileNav() {
   const pathname = usePathname();
   const { data: sessionData } = useSession();
   const role = sessionData?.session?.role || 'employee';
-  const visibleLinks = links.filter(l => !l.minRole || roleHierarchy[role] >= roleHierarchy[l.minRole]).slice(0, 5);
+  const allowedModules = sessionData?.session?.allowedModules as string[] | null;
+  const visibleLinks = links.filter(l => {
+    if (l.minRole && roleHierarchy[role] < roleHierarchy[l.minRole]) return false;
+    if (allowedModules && role === 'employee') {
+      if (l.module === 'dashboard') return true;
+      return allowedModules.includes(l.module);
+    }
+    return true;
+  }).slice(0, 5);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/90 backdrop-blur-xl md:hidden">

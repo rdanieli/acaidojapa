@@ -14,6 +14,7 @@ export async function GET() {
       name: users.name,
       email: users.email,
       role: users.role,
+      allowedModules: users.allowedModules,
       phone: users.phone,
       active: users.active,
       lastLoginAt: users.lastLoginAt,
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getTenantScope();
     requireRole(session, 'owner');
-    const { name, email, password, role, phone } = await request.json();
+    const { name, email, password, role, phone, allowedModules } = await request.json();
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'name, email, password obrigatórios' }, { status: 400 });
     }
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       email,
       passwordHash,
       role: role || 'employee',
+      allowedModules: allowedModules || null,
       phone: phone || null,
     }).returning();
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
@@ -56,13 +58,14 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await getTenantScope();
     requireRole(session, 'owner');
-    const { id, role, active, name, phone } = await request.json();
+    const { id, role, active, name, phone, allowedModules } = await request.json();
     if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 });
     const updates: any = {};
     if (role !== undefined) updates.role = role;
     if (active !== undefined) updates.active = active;
     if (name !== undefined) updates.name = name;
     if (phone !== undefined) updates.phone = phone;
+    if (allowedModules !== undefined) updates.allowedModules = allowedModules;
     const [updated] = await db.update(users).set(updates)
       .where(and(eq(users.id, id), eq(users.tenantId, session.tenantId)))
       .returning();

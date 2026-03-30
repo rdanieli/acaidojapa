@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Settings, Plus, Pencil, Check, X, UserPlus, Users, Power, PowerOff, Link, Save, CheckCircle, CreditCard } from 'lucide-react';
+import { ALL_MODULES } from '@/components/sidebar';
 
 const ROLES = [
   { value: 'owner', label: 'Dono' },
@@ -386,10 +387,11 @@ export default function ConfiguracoesPage() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('employee');
   const [newPhone, setNewPhone] = useState('');
+  const [newModules, setNewModules] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', role: '', phone: '' });
+  const [editForm, setEditForm] = useState({ name: '', role: '', phone: '', allowedModules: [] as string[] });
 
   const usersList = data?.users ?? [];
 
@@ -403,12 +405,14 @@ export default function ConfiguracoesPage() {
         password: newPassword,
         role: newRole,
         phone: newPhone.trim() || undefined,
+        allowedModules: newRole === 'employee' ? newModules : undefined,
       });
       setNewName('');
       setNewEmail('');
       setNewPassword('');
       setNewRole('employee');
       setNewPhone('');
+      setNewModules([]);
     } catch (err: any) {
       setError(err.message);
     }
@@ -420,6 +424,7 @@ export default function ConfiguracoesPage() {
       name: u.name,
       role: u.role,
       phone: u.phone || '',
+      allowedModules: u.allowedModules || [],
     });
   };
 
@@ -430,6 +435,7 @@ export default function ConfiguracoesPage() {
       name: editForm.name,
       role: editForm.role,
       phone: editForm.phone || undefined,
+      allowedModules: editForm.role === 'employee' ? editForm.allowedModules : null,
     });
     setEditingId(null);
   };
@@ -550,6 +556,30 @@ export default function ConfiguracoesPage() {
                 Adicionar
               </Button>
             </div>
+            {newRole === 'employee' && (
+              <div className="col-span-full space-y-2">
+                <label className="text-xs text-muted-foreground">Módulos permitidos</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_MODULES.filter(m => !['dashboard', 'configuracoes', 'financeiro'].includes(m.id)).map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setNewModules(prev => prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id])}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
+                        newModules.includes(m.id)
+                          ? 'bg-acai/15 border-acai/30 text-acai font-medium'
+                          : 'bg-muted/50 border-border text-muted-foreground/60'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground/40">
+                  Selecione os módulos que este funcionário pode acessar. Dashboard é sempre visível.
+                </p>
+              </div>
+            )}
             {error && (
               <p className="text-xs text-red-500">{error}</p>
             )}
@@ -575,6 +605,7 @@ export default function ConfiguracoesPage() {
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Nome</TableHead>
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Email</TableHead>
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Cargo</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Módulos</TableHead>
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Telefone</TableHead>
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Status</TableHead>
                     <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Último login</TableHead>
@@ -614,6 +645,48 @@ export default function ConfiguracoesPage() {
                             </select>
                           ) : (
                             roleBadge(u.role)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditing && editForm.role === 'employee' ? (
+                            <div className="flex flex-wrap gap-1">
+                              {ALL_MODULES.filter(m => !['dashboard', 'configuracoes', 'financeiro'].includes(m.id)).map(m => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => setEditForm(prev => ({
+                                    ...prev,
+                                    allowedModules: prev.allowedModules.includes(m.id)
+                                      ? prev.allowedModules.filter(x => x !== m.id)
+                                      : [...prev.allowedModules, m.id],
+                                  }))}
+                                  className={`px-2 py-0.5 rounded-full text-[10px] border transition-all ${
+                                    editForm.allowedModules.includes(m.id)
+                                      ? 'bg-acai/15 border-acai/30 text-acai font-medium'
+                                      : 'bg-muted/50 border-border text-muted-foreground/60'
+                                  }`}
+                                >
+                                  {m.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : u.role === 'employee' ? (
+                            u.allowedModules && u.allowedModules.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {u.allowedModules.map((modId: string) => {
+                                  const mod = ALL_MODULES.find(m => m.id === modId);
+                                  return mod ? (
+                                    <Badge key={modId} className="bg-acai/10 text-acai/70 border-acai/15 hover:bg-acai/10 text-[10px] px-1.5 py-0">
+                                      {mod.label}
+                                    </Badge>
+                                  ) : null;
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/40">Todos</span>
+                            )
+                          ) : (
+                            <span className="text-xs text-muted-foreground/40">-</span>
                           )}
                         </TableCell>
                         <TableCell>

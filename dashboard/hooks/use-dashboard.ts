@@ -750,7 +750,7 @@ export function useUsers() {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; email: string; password: string; role?: string; phone?: string }) => {
+    mutationFn: async (data: { name: string; email: string; password: string; role?: string; phone?: string; allowedModules?: string[] }) => {
       const res = await fetch('/api/dashboard/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -769,7 +769,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { id: number; role?: string; active?: boolean; name?: string; phone?: string }) => {
+    mutationFn: async (data: { id: number; role?: string; active?: boolean; name?: string; phone?: string; allowedModules?: string[] | null }) => {
       const res = await fetch('/api/dashboard/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

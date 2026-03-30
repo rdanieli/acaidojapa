@@ -7,6 +7,7 @@ export interface Session {
   tenantId: number;
   role: 'owner' | 'manager' | 'employee';
   email: string;
+  allowedModules: string[] | null;
   tenant: {
     name: string;
     slug: string;
