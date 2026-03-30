@@ -32,7 +32,7 @@ const roleHierarchy: Record<string, number> = { owner: 3, manager: 2, employee: 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: sessionData } = useSession();
+  const { data: sessionData, isLoading: sessionLoading } = useSession();
   const role = sessionData?.session?.role || 'employee';
   const tenantName = sessionData?.session?.tenant?.name || 'Dashboard';
   const allowedModules = sessionData?.session?.allowedModules as string[] | null;
@@ -70,7 +70,11 @@ export function Sidebar() {
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
           Menu
         </p>
-        {visibleLinks.map(({ href, label, icon: Icon }) => {
+        {sessionLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-10 rounded-xl bg-muted/30 animate-pulse mb-1" />
+          ))
+        ) : visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
@@ -96,6 +100,7 @@ export function Sidebar() {
         })}
       </nav>
 
+
       <div className="p-3">
         <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent mb-3" />
         <Button
@@ -114,7 +119,8 @@ export function Sidebar() {
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { data: sessionData } = useSession();
+  const { data: sessionData, isLoading: sessionLoading } = useSession();
+  if (sessionLoading) return null;
   const role = sessionData?.session?.role || 'employee';
   const allowedModules = sessionData?.session?.allowedModules as string[] | null;
   const visibleLinks = links.filter(l => {

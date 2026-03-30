@@ -15,7 +15,7 @@ import { DashboardContext } from './context';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: sessionData } = useSession();
+  const { data: sessionData, isLoading: sessionLoading } = useSession();
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: subDays(new Date(), 6),
@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="h-px w-full bg-gradient-to-r from-transparent via-acai/20 to-transparent" />
           </header>
 
-          <main className="p-4 pb-20 md:p-6 md:pb-6">{children}</main>
+          <main className="p-4 pb-20 md:p-6 md:pb-6">{sessionLoading ? null : children}</main>
           <QuickActions />
         </div>
       </div>
