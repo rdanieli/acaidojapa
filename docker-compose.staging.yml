@@ -46,6 +46,9 @@ services:
       NEXT_PUBLIC_APP_URL: https://staging.japa.divinify.app
       CRON_SECRET: ${CRON_SECRET}
       WEBHOOK_SECRET: ""
+      # Asaas billing (sandbox)
+      ASAAS_API_KEY: "$$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjM1ZTg1ODY5LWNkYTktNDkzMy1hODZhLTNmOTAxYzJkNzUyYzo6JGFhY2hfYmZlYWZjYWItMjQyNS00NTM4LWJiZDgtYjRjZmM1ZDVmZWI4"
+      ASAAS_SANDBOX: "true"
     ports:
       - "127.0.0.1:3002:3001"
 
