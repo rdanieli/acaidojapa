@@ -328,6 +328,31 @@ export const tenantSettings = pgTable('tenant_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** API Keys for Ingest API */
+export const apiKeys = pgTable('api_keys', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id),
+  key: text('key').notNull().unique(),
+  name: text('name').notNull().default('default'),
+  active: boolean('active').notNull().default(true),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Ingest event queue/log */
+export const ingestEvents = pgTable('ingest_events', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id),
+  apiKeyId: integer('api_key_id').references(() => apiKeys.id),
+  event: text('event').notNull(),
+  payload: json('payload').notNull(),
+  status: text('status').notNull().default('pending'),
+  error: text('error'),
+  source: text('source'),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Business locations/units */
 export const locations = pgTable('locations', {
   id: serial('id').primaryKey(),

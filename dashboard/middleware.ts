@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   '/api/dashboard/stock/seed-revenda-milkshake',
   '/api/dashboard/orders/sync',
   '/api/dashboard/stock/shopping-list',
+  '/api/v1',
 ];
 
 export async function middleware(request: NextRequest) {

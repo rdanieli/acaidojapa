@@ -1061,6 +1061,59 @@ export function useSubscribe() {
   });
 }
 
+// --- API Keys ---
+export function useApiKeys() {
+  return useQuery<{ keys: any[] }>({
+    queryKey: ['api-keys'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/api-keys');
+      if (!res.ok) throw new Error('Failed to fetch API keys');
+      return res.json();
+    },
+  });
+}
+
+export function useCreateApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name?: string) => {
+      const res = await fetch('/api/dashboard/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error('Failed to create API key');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  });
+}
+
+export function useRevokeApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/dashboard/api-keys?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to revoke API key');
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  });
+}
+
+// --- Ingest Log ---
+export function useIngestLog() {
+  return useQuery<{ events: any[] }>({
+    queryKey: ['ingest-log'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/ingest-log');
+      if (!res.ok) throw new Error('Failed to fetch ingest log');
+      return res.json();
+    },
+    refetchInterval: 30_000,
+  });
+}
+
 // --- Stock Summary (Dashboard Widget) ---
 export function useStockSummary() {
   return useQuery<{ totalProducts: number; lowStock: number; outOfStock: number; criticalProducts: any[] }>({
