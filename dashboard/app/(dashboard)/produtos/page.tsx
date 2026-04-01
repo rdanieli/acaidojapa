@@ -7,8 +7,8 @@ import { TopProductsChart } from '@/components/charts/top-products-chart';
 import { BarChart3 } from 'lucide-react';
 
 export default function ProdutosPage() {
-  const { startDate, endDate, channel } = useDashboard();
-  const { data, isLoading } = useProducts(startDate, endDate, channel);
+  const { startDate, endDate } = useDashboard();
+  const { data, isLoading } = useProducts(startDate, endDate);
 
   const products = data?.products ?? [];
 

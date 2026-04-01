@@ -23,10 +23,10 @@ import {
 type Tab = 'dre' | 'margins' | 'purchases';
 
 export default function FinanceiroPage() {
-  const { startDate, endDate, channel } = useDashboard();
+  const { startDate, endDate } = useDashboard();
   const [tab, setTab] = useState<Tab>('dre');
 
-  const { data: fin, isLoading: finLoading } = useFinancial(startDate, endDate, channel);
+  const { data: fin, isLoading: finLoading } = useFinancial(startDate, endDate);
   const { data: purchases, isLoading: purchasesLoading } = usePurchases(startDate, endDate);
 
   const tabs: { key: Tab; label: string }[] = [

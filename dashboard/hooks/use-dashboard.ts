@@ -4,44 +4,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDateISO } from '@/lib/format';
 import type { DashboardMetrics } from '@/lib/types';
 import type { UnifiedOrder } from '@/lib/types';
-import type { Channel } from '@/components/channel-toggle';
-
-function buildParams(start: Date, end: Date, channel: Channel) {
+function buildParams(start: Date, end: Date) {
   const params = new URLSearchParams({
     start: formatDateISO(start),
     end: formatDateISO(end),
   });
-  if (channel !== 'all') params.set('channel', channel);
   return params.toString();
 }
 
-export function useMetrics(start: Date, end: Date, channel: Channel) {
+export function useMetrics(start: Date, end: Date) {
   return useQuery<DashboardMetrics>({
-    queryKey: ['metrics', formatDateISO(start), formatDateISO(end), channel],
+    queryKey: ['metrics', formatDateISO(start), formatDateISO(end)],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/metrics?${buildParams(start, end, channel)}`);
+      const res = await fetch(`/api/dashboard/metrics?${buildParams(start, end)}`);
       if (!res.ok) throw new Error('Failed to fetch metrics');
       return res.json();
     },
   });
 }
 
-export function useOrders(start: Date, end: Date, channel: Channel) {
+export function useOrders(start: Date, end: Date) {
   return useQuery<{ orders: UnifiedOrder[] }>({
-    queryKey: ['orders', formatDateISO(start), formatDateISO(end), channel],
+    queryKey: ['orders', formatDateISO(start), formatDateISO(end)],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/orders?${buildParams(start, end, channel)}`);
+      const res = await fetch(`/api/dashboard/orders?${buildParams(start, end)}`);
       if (!res.ok) throw new Error('Failed to fetch orders');
       return res.json();
     },
   });
 }
 
-export function useProducts(start: Date, end: Date, channel: Channel) {
+export function useProducts(start: Date, end: Date) {
   return useQuery<{ products: any[] }>({
-    queryKey: ['products', formatDateISO(start), formatDateISO(end), channel],
+    queryKey: ['products', formatDateISO(start), formatDateISO(end)],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/products?${buildParams(start, end, channel)}`);
+      const res = await fetch(`/api/dashboard/products?${buildParams(start, end)}`);
       if (!res.ok) throw new Error('Failed to fetch products');
       return res.json();
     },
@@ -622,7 +619,7 @@ export function useDeleteAlias() {
 }
 
 // --- Financial Dashboard ---
-export function useFinancial(start: Date, end: Date, channel: Channel) {
+export function useFinancial(start: Date, end: Date) {
   return useQuery<{
     revenue: number;
     cmv: number;
@@ -642,9 +639,9 @@ export function useFinancial(start: Date, end: Date, channel: Channel) {
     unmappedItems: number;
     unmappedNames: { name: string; count: number }[];
   }>({
-    queryKey: ['financial', formatDateISO(start), formatDateISO(end), channel],
+    queryKey: ['financial', formatDateISO(start), formatDateISO(end)],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/financial?${buildParams(start, end, channel)}`);
+      const res = await fetch(`/api/dashboard/financial?${buildParams(start, end)}`);
       if (!res.ok) throw new Error('Failed to fetch financial data');
       return res.json();
     },

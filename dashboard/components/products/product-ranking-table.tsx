@@ -12,8 +12,6 @@ interface Product {
   qty: number;
   revenue: number;
   avgPrice: number;
-  pdvQty: number;
-  onlineQty: number;
 }
 
 interface ProductRankingTableProps {
@@ -85,8 +83,6 @@ export function ProductRankingTable({ products, loading }: ProductRankingTablePr
             <SortHeader label="Qty" field="qty" />
             <SortHeader label="Faturamento" field="revenue" />
             <SortHeader label="Preço Médio" field="avgPrice" />
-            <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">PDV</TableHead>
-            <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Online</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -97,8 +93,6 @@ export function ProductRankingTable({ products, loading }: ProductRankingTablePr
               <TableCell className="text-sm tabular-nums">{p.qty}</TableCell>
               <TableCell className="text-sm font-semibold tabular-nums">{formatCurrency(p.revenue)}</TableCell>
               <TableCell className="text-sm tabular-nums text-muted-foreground">{formatCurrency(p.avgPrice)}</TableCell>
-              <TableCell className="text-xs text-muted-foreground/60 tabular-nums">{p.pdvQty}</TableCell>
-              <TableCell className="text-xs text-muted-foreground/60 tabular-nums">{p.onlineQty}</TableCell>
             </TableRow>
           ))}
         </TableBody>

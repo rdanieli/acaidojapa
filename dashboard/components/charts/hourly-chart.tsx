@@ -7,12 +7,11 @@ import { Clock } from 'lucide-react';
 import { formatHour } from '@/lib/format';
 
 const chartConfig = {
-  pdv: { label: 'PDV', color: '#ae2dac' },
-  online: { label: 'Online', color: '#2dd4bf' },
+  total: { label: 'Vendas', color: '#ae2dac' },
 } satisfies ChartConfig;
 
 interface HourlyChartProps {
-  data: { hour: number; pdv: number; online: number }[];
+  data: { hour: number; total: number }[];
   loading?: boolean;
 }
 
@@ -38,8 +37,7 @@ export function HourlyChart({ data, loading }: HourlyChartProps) {
               <XAxis dataKey="hour" tickFormatter={formatHour} fontSize={10} tickLine={false} axisLine={false} />
               <YAxis fontSize={11} tickFormatter={(v) => `R$${v}`} width={55} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="pdv" stackId="1" fill="#ae2dac" radius={[0, 0, 0, 0]} fillOpacity={0.85} />
-              <Bar dataKey="online" stackId="1" fill="#2dd4bf" radius={[3, 3, 0, 0]} fillOpacity={0.85} />
+              <Bar dataKey="total" fill="#ae2dac" radius={[3, 3, 0, 0]} fillOpacity={0.85} />
             </BarChart>
           </ChartContainer>
         )}

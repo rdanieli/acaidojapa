@@ -7,7 +7,6 @@ import { useSession } from '@/hooks/use-session';
 import type { DateRange } from 'react-day-picker';
 import { Sidebar, MobileNav } from '@/components/sidebar';
 import { DateRangePicker } from '@/components/date-range-picker';
-import { ChannelToggle, type Channel } from '@/components/channel-toggle';
 import { NotificationBell } from '@/components/notification-bell';
 import { QuickActions } from '@/components/quick-actions';
 import { DashboardContext } from './context';
@@ -21,8 +20,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     from: subDays(new Date(), 6),
     to: new Date(),
   });
-  const [channel, setChannel] = useState<Channel>('all');
-
   useEffect(() => {
     if (!sessionData?.session) return;
     const session = sessionData.session;
@@ -54,8 +51,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       value={{
         dateRange,
         setDateRange,
-        channel,
-        setChannel,
         startDate: dateRange.from || subDays(new Date(), 6),
         endDate: dateRange.to || new Date(),
       }}
@@ -82,8 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex items-center gap-2">
                 <NotificationBell />
-                <ChannelToggle value={channel} onChange={setChannel} />
-                <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+<DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
               </div>
             </div>
             <div className="h-px w-full bg-gradient-to-r from-transparent via-acai/20 to-transparent" />

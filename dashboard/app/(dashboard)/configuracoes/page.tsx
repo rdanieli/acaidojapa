@@ -81,14 +81,6 @@ function IntegrationsTab() {
 
   const [form, setForm] = useState({
     tenantName: '',
-    pdvApiUrl: '',
-    pdvUsername: '',
-    pdvPassword: '',
-    pdvClientId: '',
-    pdvClientSecret: '',
-    pdvCodFilial: '',
-    cardapioToken: '',
-    cardapioApiUrl: '',
     evolutionApiUrl: '',
     evolutionApiKey: '',
     evolutionInstanceName: '',
@@ -101,14 +93,6 @@ function IntegrationsTab() {
       const s = data.settings || {};
       setForm({
         tenantName: data.tenant?.name || '',
-        pdvApiUrl: s.pdvApiUrl || '',
-        pdvUsername: s.pdvUsername || '',
-        pdvPassword: s.pdvPassword || '',
-        pdvClientId: s.pdvClientId || '',
-        pdvClientSecret: s.pdvClientSecret || '',
-        pdvCodFilial: s.pdvCodFilial || '',
-        cardapioToken: s.cardapioToken || '',
-        cardapioApiUrl: s.cardapioApiUrl || '',
         evolutionApiUrl: s.evolutionApiUrl || '',
         evolutionApiKey: s.evolutionApiKey || '',
         evolutionInstanceName: s.evolutionInstanceName || '',
@@ -150,22 +134,6 @@ function IntegrationsTab() {
             className="h-8 bg-muted/50 border-border text-sm text-muted-foreground cursor-not-allowed"
           />
         </div>
-      </IntegrationCard>
-
-      {/* PDV Legal */}
-      <IntegrationCard title="PDV Legal">
-        <FieldInput label="URL da API" value={form.pdvApiUrl} onChange={set('pdvApiUrl')} placeholder="https://api.pdvlegal.com" />
-        <FieldInput label="Usuário" value={form.pdvUsername} onChange={set('pdvUsername')} />
-        <FieldInput label="Senha" value={form.pdvPassword} onChange={set('pdvPassword')} type="password" />
-        <FieldInput label="Client ID" value={form.pdvClientId} onChange={set('pdvClientId')} />
-        <FieldInput label="Client Secret" value={form.pdvClientSecret} onChange={set('pdvClientSecret')} type="password" />
-        <FieldInput label="Código Filial" value={form.pdvCodFilial} onChange={set('pdvCodFilial')} />
-      </IntegrationCard>
-
-      {/* Cardápio Web */}
-      <IntegrationCard title="Cardápio Web">
-        <FieldInput label="Token" value={form.cardapioToken} onChange={set('cardapioToken')} type="password" />
-        <FieldInput label="URL da API" value={form.cardapioApiUrl} onChange={set('cardapioApiUrl')} placeholder="https://api.cardapio.com" />
       </IntegrationCard>
 
       {/* WhatsApp */}
@@ -249,13 +217,13 @@ const PLANS = [
     id: 'starter',
     name: 'Starter',
     price: 49.90,
-    features: ['3 usuários', 'Dashboard completo', 'Controle de estoque', 'Integrações PDV', 'Relatórios avançados'],
+    features: ['3 usuários', 'Dashboard completo', 'Controle de estoque', 'Integrações', 'Relatórios avançados'],
   },
   {
     id: 'pro',
     name: 'Pro',
     price: 99.90,
-    features: ['Usuários ilimitados', 'Dashboard completo', 'Controle de estoque', 'Integrações PDV + WhatsApp', 'Relatórios avançados', 'Suporte prioritário'],
+    features: ['Usuários ilimitados', 'Dashboard completo', 'Controle de estoque', 'WhatsApp integrado', 'Relatórios avançados', 'Suporte prioritário'],
   },
 ];
 

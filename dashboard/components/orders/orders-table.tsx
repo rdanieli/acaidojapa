@@ -12,14 +12,6 @@ interface OrdersTableProps {
   onSelect: (order: UnifiedOrder) => void;
 }
 
-function channelBadge(channel: 'pdv' | 'online') {
-  return channel === 'pdv' ? (
-    <Badge variant="outline" className="border-acai/30 bg-acai/10 text-acai text-[10px] font-medium">PDV</Badge>
-  ) : (
-    <Badge variant="outline" className="border-teal/30 bg-teal/10 text-teal text-[10px] font-medium">Online</Badge>
-  );
-}
-
 function statusBadge(status: 'completed' | 'canceled') {
   return status === 'canceled' ? (
     <Badge variant="destructive" className="text-[10px] font-medium">Cancelado</Badge>
@@ -66,7 +58,6 @@ export function OrdersTable({ orders, loading, onSelect }: OrdersTableProps) {
           <TableRow className="border-border hover:bg-transparent">
             <TableHead className="w-16 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">#</TableHead>
             <TableHead className="w-16 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Hora</TableHead>
-            <TableHead className="w-20 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Canal</TableHead>
             <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Tipo</TableHead>
             <TableHead className="text-right text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Total</TableHead>
             <TableHead className="w-20 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">Status</TableHead>
@@ -82,7 +73,6 @@ export function OrdersTable({ orders, loading, onSelect }: OrdersTableProps) {
             >
               <TableCell className="font-mono text-xs text-muted-foreground">{order.displayId}</TableCell>
               <TableCell className="text-xs font-medium">{formatTime(order.datetime)}</TableCell>
-              <TableCell>{channelBadge(order.channel)}</TableCell>
               <TableCell className="text-xs text-foreground/80">{ORDER_TYPE_LABELS[order.orderType] || order.orderType}</TableCell>
               <TableCell className="text-right font-semibold text-xs">{formatCurrency(order.total)}</TableCell>
               <TableCell>{statusBadge(order.status)}</TableCell>

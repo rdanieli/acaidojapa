@@ -6,12 +6,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp } from 'lucide-react';
 
 const chartConfig = {
-  pdv: { label: 'PDV', color: '#ae2dac' },
-  online: { label: 'Online', color: '#2dd4bf' },
+  total: { label: 'Receita', color: '#ae2dac' },
 } satisfies ChartConfig;
 
 interface RevenueChartProps {
-  data: { date: string; pdv: number; online: number }[];
+  data: { date: string; total: number }[];
   loading?: boolean;
 }
 
@@ -24,7 +23,7 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
         </div>
         <div>
           <h3 className="text-sm font-semibold tracking-tight">Faturamento por Dia</h3>
-          <p className="text-[10px] text-muted-foreground/60">Evolução diária de receita por canal</p>
+          <p className="text-[10px] text-muted-foreground/60">Evolução diária de receita</p>
         </div>
       </div>
       <div className="px-5 pb-4">
@@ -34,13 +33,9 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
           <ChartContainer config={chartConfig} className="h-[260px] w-full">
             <AreaChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: 0 }}>
               <defs>
-                <linearGradient id="gradPdv" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#ae2dac" stopOpacity={0.35} />
                   <stop offset="100%" stopColor="#ae2dac" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradOnline" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -58,19 +53,10 @@ export function RevenueChart({ data, loading }: RevenueChartProps) {
               <ChartTooltip content={<ChartTooltipContent />} />
               <Area
                 type="monotone"
-                dataKey="pdv"
-                stackId="1"
+                dataKey="total"
                 stroke="#ae2dac"
                 strokeWidth={2}
-                fill="url(#gradPdv)"
-              />
-              <Area
-                type="monotone"
-                dataKey="online"
-                stackId="1"
-                stroke="#2dd4bf"
-                strokeWidth={2}
-                fill="url(#gradOnline)"
+                fill="url(#gradTotal)"
               />
             </AreaChart>
           </ChartContainer>

@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const start = searchParams.get('start');
   const end = searchParams.get('end');
-  const channel = searchParams.get('channel');
 
   if (!start || !end) {
     return NextResponse.json({ error: 'start and end params required' }, { status: 400 });
@@ -44,8 +43,8 @@ export async function GET(request: NextRequest) {
   try {
     const { tenantId } = await getTenantScope();
 
-    // Get POS orders
-    const posOrders = await getLocalOrders(start, end, channel, tenantId);
+    // Get all orders
+    const posOrders = await getLocalOrders(start, end, tenantId);
 
     // Get manual sales
     const manualSalesData = await db.select().from(manualSales)
@@ -57,11 +56,7 @@ export async function GET(request: NextRequest) {
 
     // Convert manual sales to unified format and merge
     const manualOrders = manualSalesData.map(manualSaleToUnifiedOrder);
-
-    // If channel filter is 'online', exclude manual sales (they're in-store)
-    const allOrders = channel === 'online'
-      ? posOrders
-      : [...posOrders, ...manualOrders];
+    const allOrders = [...posOrders, ...manualOrders];
 
     const metrics = aggregateMetrics(allOrders);
     return NextResponse.json(metrics);

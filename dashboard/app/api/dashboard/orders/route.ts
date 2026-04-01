@@ -6,7 +6,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const start = searchParams.get('start');
   const end = searchParams.get('end');
-  const channel = searchParams.get('channel');
 
   if (!start || !end) {
     return NextResponse.json({ error: 'start and end params required' }, { status: 400 });
@@ -14,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { tenantId } = await getTenantScope();
-    const orders = await getLocalOrders(start, end, channel, tenantId);
+    const orders = await getLocalOrders(start, end, tenantId);
     return NextResponse.json({ orders });
   } catch (error: any) {
     console.error('Orders error:', error);

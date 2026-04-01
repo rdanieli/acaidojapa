@@ -1,7 +1,6 @@
 'use client';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/format';
 import type { UnifiedOrder } from '@/lib/types';
@@ -22,13 +21,8 @@ export function OrderDetailSheet({ order, open, onClose }: OrderDetailSheetProps
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-lg font-bold tracking-tight">
+          <SheetTitle className="text-lg font-bold tracking-tight">
             Pedido #{order.displayId}
-            {order.channel === 'pdv' ? (
-              <Badge variant="outline" className="border-acai/30 bg-acai/10 text-acai text-[10px]">PDV</Badge>
-            ) : (
-              <Badge variant="outline" className="border-teal/30 bg-teal/10 text-teal text-[10px]">Online</Badge>
-            )}
           </SheetTitle>
         </SheetHeader>
 
@@ -45,12 +39,6 @@ export function OrderDetailSheet({ order, open, onClose }: OrderDetailSheetProps
                 <p className="mt-0.5 text-sm font-semibold capitalize">{value}</p>
               </div>
             ))}
-            {order.salesChannel && (
-              <div className="col-span-2 rounded-xl bg-muted/50 border border-border p-3">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">Canal de venda</p>
-                <p className="mt-0.5 text-sm font-semibold">{order.salesChannel}</p>
-              </div>
-            )}
           </div>
 
           <Separator className="bg-muted/80" />

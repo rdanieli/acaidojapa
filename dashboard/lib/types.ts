@@ -29,12 +29,8 @@ export interface DashboardMetrics {
   orderCount: number;
   avgTicket: number;
   canceledCount: number;
-  revenueByDay: { date: string; pdv: number; online: number }[];
-  revenueByHour: { hour: number; pdv: number; online: number }[];
+  revenueByDay: { date: string; total: number }[];
+  revenueByHour: { hour: number; total: number }[];
   paymentBreakdown: { method: string; amount: number; count: number }[];
   topProducts: { name: string; qty: number; revenue: number }[];
-  channelSplit: {
-    pdv: { revenue: number; count: number };
-    online: { revenue: number; count: number };
-  };
 }

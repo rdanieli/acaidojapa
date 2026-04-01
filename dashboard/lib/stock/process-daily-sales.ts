@@ -73,7 +73,7 @@ export async function processDailySales(date: string, tenantId: number): Promise
     }
 
     // Step 2: Read from local DB
-    const allOrders = await getLocalOrders(date, date, null, tenantId);
+    const allOrders = await getLocalOrders(date, date, tenantId);
     const completedOrders = allOrders.filter(o => o.status === 'completed');
     const ordersFetched = completedOrders.length;
 

@@ -104,31 +104,27 @@ export function aggregateMetrics(orders: UnifiedOrder[]): DashboardMetrics {
   const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
 
   // Revenue by day
-  const dayMap = new Map<string, { pdv: number; online: number }>();
+  const dayMap = new Map<string, number>();
   for (const o of completed) {
     const date = o.datetime.split('T')[0];
     if (!date) continue;
-    const entry = dayMap.get(date) || { pdv: 0, online: 0 };
-    entry[o.channel === 'pdv' ? 'pdv' : 'online'] += o.total;
-    dayMap.set(date, entry);
+    dayMap.set(date, (dayMap.get(date) || 0) + o.total);
   }
   const revenueByDay = Array.from(dayMap.entries())
-    .map(([date, vals]) => ({ date, ...vals }))
+    .map(([date, total]) => ({ date, total }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // Revenue by hour
-  const hourMap = new Map<number, { pdv: number; online: number }>();
+  const hourMap = new Map<number, number>();
   for (const o of completed) {
     const timePart = o.datetime.split('T')[1];
     if (!timePart) continue;
     const hour = parseInt(timePart.substring(0, 2), 10);
     if (isNaN(hour)) continue;
-    const entry = hourMap.get(hour) || { pdv: 0, online: 0 };
-    entry[o.channel === 'pdv' ? 'pdv' : 'online'] += o.total;
-    hourMap.set(hour, entry);
+    hourMap.set(hour, (hourMap.get(hour) || 0) + o.total);
   }
   const revenueByHour = Array.from(hourMap.entries())
-    .map(([hour, vals]) => ({ hour, ...vals }))
+    .map(([hour, total]) => ({ hour, total }))
     .sort((a, b) => a.hour - b.hour);
 
   // Payment breakdown
@@ -159,10 +155,6 @@ export function aggregateMetrics(orders: UnifiedOrder[]): DashboardMetrics {
     .map(([name, vals]) => ({ name, ...vals }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Channel split
-  const pdvOrders = completed.filter((o) => o.channel === 'pdv');
-  const onlineOrders = completed.filter((o) => o.channel === 'online');
-
   return {
     totalRevenue,
     orderCount,
@@ -172,15 +164,5 @@ export function aggregateMetrics(orders: UnifiedOrder[]): DashboardMetrics {
     revenueByHour,
     paymentBreakdown,
     topProducts,
-    channelSplit: {
-      pdv: {
-        revenue: pdvOrders.reduce((s, o) => s + o.total, 0),
-        count: pdvOrders.length,
-      },
-      online: {
-        revenue: onlineOrders.reduce((s, o) => s + o.total, 0),
-        count: onlineOrders.length,
-      },
-    },
   };
 }

@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const start = searchParams.get('start');
   const end = searchParams.get('end');
-  const channel = searchParams.get('channel');
 
   if (!start || !end) {
     return NextResponse.json({ error: 'start and end params required' }, { status: 400 });
@@ -36,8 +35,6 @@ export async function GET(request: NextRequest) {
       eq(orders.status, 'completed'),
       eq(orders.tenantId, tenantId),
     ];
-    if (channel === 'pdv') conditions.push(eq(orders.channel, 'pdv'));
-    if (channel === 'online') conditions.push(eq(orders.channel, 'online'));
 
     const dbOrders = await db
       .select()

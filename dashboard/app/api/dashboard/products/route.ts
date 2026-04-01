@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalOrders } from '@/lib/local-orders';
 import { getTenantScope } from '@/lib/db/tenant';
-import type { UnifiedOrder } from '@/lib/types';
 
 interface ProductStats {
   name: string;
   qty: number;
   revenue: number;
   avgPrice: number;
-  pdvQty: number;
-  onlineQty: number;
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const start = searchParams.get('start');
   const end = searchParams.get('end');
-  const channel = searchParams.get('channel');
 
   if (!start || !end) {
     return NextResponse.json({ error: 'start and end params required' }, { status: 400 });
@@ -24,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { tenantId } = await getTenantScope();
-    const orders = await getLocalOrders(start, end, channel, tenantId);
+    const orders = await getLocalOrders(start, end, tenantId);
     const completed = orders.filter((o) => o.status === 'completed');
     const prodMap = new Map<string, ProductStats>();
 
@@ -35,13 +31,9 @@ export async function GET(request: NextRequest) {
           qty: 0,
           revenue: 0,
           avgPrice: 0,
-          pdvQty: 0,
-          onlineQty: 0,
         };
         existing.qty += item.quantity;
         existing.revenue += item.totalPrice;
-        if (order.channel === 'pdv') existing.pdvQty += item.quantity;
-        else existing.onlineQty += item.quantity;
         prodMap.set(item.name, existing);
       }
     }

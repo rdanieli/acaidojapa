@@ -6,7 +6,6 @@ import { KpiCard } from '@/components/kpi-card';
 import { RevenueChart } from '@/components/charts/revenue-chart';
 import { HourlyChart } from '@/components/charts/hourly-chart';
 import { PaymentDonut } from '@/components/charts/payment-donut';
-import { ChannelComparison } from '@/components/charts/channel-comparison';
 import { TopProductsChart } from '@/components/charts/top-products-chart';
 import { formatCurrency } from '@/lib/format';
 import { DollarSign, ShoppingCart, Receipt, XCircle, Package, AlertTriangle, Ban, Rocket, ClipboardList, MessageSquare } from 'lucide-react';
@@ -14,11 +13,9 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { startDate, endDate, channel } = useDashboard();
-  const { data: metrics, isLoading } = useMetrics(startDate, endDate, channel);
+  const { startDate, endDate } = useDashboard();
+  const { data: metrics, isLoading } = useMetrics(startDate, endDate);
   const { data: stockSummary } = useStockSummary();
-
-  const defaultSplit = { pdv: { revenue: 0, count: 0 }, online: { revenue: 0, count: 0 } };
 
   return (
     <div className="space-y-6">
@@ -95,9 +92,8 @@ export default function DashboardPage() {
         <PaymentDonut data={metrics?.paymentBreakdown ?? []} loading={isLoading} />
       </div>
 
-      {/* Channel Comparison + Top Products */}
-      <div className="grid gap-4 lg:grid-cols-3 stagger-children">
-        <ChannelComparison channelSplit={metrics?.channelSplit ?? defaultSplit} loading={isLoading} />
+      {/* Top Products */}
+      <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
         <TopProductsChart data={metrics?.topProducts ?? []} loading={isLoading} />
       </div>
 

@@ -9,8 +9,8 @@ import { ShoppingBag } from 'lucide-react';
 import type { UnifiedOrder } from '@/lib/types';
 
 export default function PedidosPage() {
-  const { startDate, endDate, channel } = useDashboard();
-  const { data, isLoading } = useOrders(startDate, endDate, channel);
+  const { startDate, endDate } = useDashboard();
+  const { data, isLoading } = useOrders(startDate, endDate);
   const [selected, setSelected] = useState<UnifiedOrder | null>(null);
 
   const orders = data?.orders ?? [];

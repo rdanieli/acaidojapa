@@ -38,13 +38,12 @@ function toUnifiedOrder(
 }
 
 /**
- * Get orders from local DB for a date range, optionally filtered by channel.
+ * Get orders from local DB for a date range.
  * Uses efficient batch loading of items.
  */
 export async function getLocalOrders(
   start: string,
   end: string,
-  channel?: string | null,
   tenantId?: number,
 ): Promise<UnifiedOrder[]> {
   const conditions = [
@@ -52,8 +51,6 @@ export async function getLocalOrders(
     lte(orders.date, end),
   ];
   if (tenantId != null) conditions.push(eq(orders.tenantId, tenantId));
-  if (channel === 'pdv') conditions.push(eq(orders.channel, 'pdv'));
-  if (channel === 'online') conditions.push(eq(orders.channel, 'online'));
 
   const dbOrders = await db
     .select()
