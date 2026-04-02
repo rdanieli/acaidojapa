@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag, Receipt, Truck, Scan, Plug } from 'lucide-react';
+import { useState } from 'react';
+import { LayoutDashboard, ShoppingBag, BarChart3, Package, LogOut, Store, ClipboardList, ClipboardCheck, DollarSign, Settings, Trash2, CheckSquare, Tag, Receipt, Truck, Scan, Plug, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/use-session';
@@ -120,31 +121,65 @@ export function Sidebar() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const [showMore, setShowMore] = useState(false);
   const { data: sessionData, isLoading: sessionLoading } = useSession();
   if (sessionLoading) return null;
   const role = sessionData?.session?.role || 'employee';
   const allowedModules = sessionData?.session?.allowedModules as string[] | null;
-  const visibleLinks = links.filter(l => {
+  const allVisible = links.filter(l => {
     if (l.minRole && roleHierarchy[role] < roleHierarchy[l.minRole]) return false;
     if (allowedModules && role === 'employee') {
       return allowedModules.includes(l.module);
     }
     return true;
-  }).slice(0, 5);
+  });
+
+  const mainLinks = allVisible.slice(0, 4);
+  const overflowLinks = allVisible.slice(4);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
-      {visibleLinks.map(({ href, label, icon: Icon }) => {
-        const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'relative flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200',
-              active ? 'text-acai' : 'text-muted-foreground/60',
-            )}
-          >
+    <>
+      {/* Overflow menu */}
+      {showMore && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setShowMore(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute bottom-16 left-0 right-0 bg-background border-t border-border rounded-t-2xl p-4 animate-fade-in">
+            <div className="grid grid-cols-4 gap-3">
+              {overflowLinks.map(({ href, label, icon: Icon }) => {
+                const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setShowMore(false)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 py-2 rounded-xl text-[10px] font-medium',
+                      active ? 'text-acai bg-acai/10' : 'text-muted-foreground/60',
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom nav bar */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
+        {mainLinks.map(({ href, label, icon: Icon }) => {
+          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'relative flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200',
+                active ? 'text-acai' : 'text-muted-foreground/60',
+              )}
+            >
             {active && (
               <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full gradient-acai" />
             )}
@@ -153,6 +188,19 @@ export function MobileNav() {
           </Link>
         );
       })}
-    </nav>
+        {overflowLinks.length > 0 && (
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className={cn(
+              'relative flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200',
+              showMore ? 'text-acai' : 'text-muted-foreground/60',
+            )}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            Mais
+          </button>
+        )}
+      </nav>
+    </>
   );
 }
