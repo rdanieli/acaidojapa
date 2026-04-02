@@ -260,20 +260,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Video placeholder */}
-          <div className="mt-12 mx-auto max-w-3xl">
-            <div className="relative rounded-2xl overflow-hidden border border-border bg-muted/20 aspect-video flex items-center justify-center group cursor-pointer hover:border-acai/30 transition-all">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="relative flex flex-col items-center gap-3">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acai/90 text-white shadow-lg group-hover:scale-110 transition-transform">
-                  <Play className="h-7 w-7 ml-1" />
-                </div>
-                <p className="text-sm font-medium text-white/80">
-                  Assistir demonstração (2 min)
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Video embed will be added here when available */}
         </div>
       </section>
 
@@ -341,81 +328,122 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            {/* WhatsApp mockup (left) */}
-            <div className="mx-auto w-full max-w-[320px]">
-              <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden shadow-2xl">
-                {/* WhatsApp header */}
-                <div className="bg-emerald-600 px-4 py-3 flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <Store className="h-4 w-4 text-white" />
+            {/* WhatsApp mockup — pixel-perfect WhatsApp Dark theme */}
+            <div className="mx-auto w-full max-w-[340px]">
+              <div className="rounded-[14px] overflow-hidden shadow-2xl shadow-black/40" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}>
+                {/* Status bar */}
+                <div className="bg-[#1f2c34] px-4 py-1 flex justify-between items-center">
+                  <span className="text-[10px] text-white/60">14:32</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-2 border border-white/60 rounded-sm"><div className="w-2 h-1 bg-white/60 rounded-sm m-[1px]" /></div>
+                    <span className="text-[10px] text-white/60">5G</span>
                   </div>
-                  <div>
-                    <p className="text-white text-sm font-medium">
-                      Tongo Gestão
-                    </p>
-                    <p className="text-emerald-200 text-[10px]">online</p>
+                </div>
+                {/* WhatsApp header — exact WA dark colors */}
+                <div className="bg-[#1f2c34] px-3 py-2 flex items-center gap-3 border-b border-[#313d45]">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#aebac1]" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7"/></svg>
+                  <div className="h-9 w-9 rounded-full bg-[#6b7b8d] flex items-center justify-center text-white text-sm font-medium">T</div>
+                  <div className="flex-1">
+                    <p className="text-[#e9edef] text-[15px] font-normal leading-tight">Tongo Gestão</p>
+                    <p className="text-[#8696a0] text-[12px] leading-tight">online</p>
+                  </div>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#aebac1]" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </div>
+
+                {/* Chat area — WA dark wallpaper */}
+                <div className="px-[6px] py-2 space-y-[3px] min-h-[380px]" style={{ backgroundColor: '#0b141a', backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 5 Q25 0 30 5 Q35 10 30 15 Q25 20 20 15 Q15 10 20 5Z\' fill=\'%23111b21\' opacity=\'0.15\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
+                  {/* Date chip */}
+                  <div className="flex justify-center mb-2">
+                    <span className="bg-[#182229] text-[#8696a0] text-[11px] px-3 py-[3px] rounded-md shadow-sm">HOJE</span>
+                  </div>
+
+                  {/* User sends photo */}
+                  <div className="flex justify-end mb-[2px]">
+                    <div className="bg-[#005c4b] rounded-lg rounded-tr-none px-1 pt-1 pb-[3px] max-w-[230px] shadow-sm">
+                      <div className="bg-[#004a3f] rounded-md h-32 w-[210px] flex items-center justify-center">
+                        <div className="text-center">
+                          <Image className="h-10 w-10 text-[#8696a0]/40 mx-auto" />
+                          <p className="text-[10px] text-[#8696a0]/60 mt-1">nota-fiscal.jpg</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end items-center gap-1 px-1 mt-[2px]">
+                        <span className="text-[11px] text-[#ffffff99]">14:32</span>
+                        <svg viewBox="0 0 16 11" className="w-4 h-[11px] text-[#53bdeb]" fill="currentColor"><path d="M11.07.66L5.4 6.33 3.04 3.98l-.87.87 3.24 3.24 6.54-6.54z"/><path d="M15.07.66L9.4 6.33 8.1 5.03l-.87.87 2.17 2.17 6.54-6.54z"/></svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bot response */}
+                  <div className="flex justify-start mb-[2px]">
+                    <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-[10px] py-[6px] max-w-[250px] shadow-sm">
+                      <p className="text-[13.5px] text-[#e9edef] leading-[19px]">📦 <span className="font-semibold">Entrada #47 registrada!</span></p>
+                      <p className="text-[13px] text-[#e9edef]/80 leading-[18px] mt-[4px]">
+                        • Polpa de Açaí 10kg: <span className="font-medium">5 cx</span><br/>
+                        • Granola: <span className="font-medium">3 pct</span> (R$45,00)<br/>
+                        • Leite Condensado: <span className="font-medium">12 un</span>
+                      </p>
+                      <p className="text-[12.5px] text-[#e9edef]/60 mt-[6px]">Responda <span className="font-semibold text-[#e9edef]/80">ok</span> para confirmar ou <span className="font-semibold text-[#e9edef]/80">cancelar</span></p>
+                      <div className="flex justify-end mt-[2px]">
+                        <span className="text-[11px] text-[#ffffff66]">14:32</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* User sends ok */}
+                  <div className="flex justify-end mb-[2px]">
+                    <div className="bg-[#005c4b] rounded-lg rounded-tr-none px-[10px] py-[6px] shadow-sm">
+                      <div className="flex items-end gap-2">
+                        <span className="text-[13.5px] text-[#e9edef]">ok</span>
+                        <div className="flex items-center gap-1 mb-[1px]">
+                          <span className="text-[11px] text-[#ffffff99]">14:33</span>
+                          <svg viewBox="0 0 16 11" className="w-4 h-[11px] text-[#53bdeb]" fill="currentColor"><path d="M11.07.66L5.4 6.33 3.04 3.98l-.87.87 3.24 3.24 6.54-6.54z"/><path d="M15.07.66L9.4 6.33 8.1 5.03l-.87.87 2.17 2.17 6.54-6.54z"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bot confirms */}
+                  <div className="flex justify-start mb-[2px]">
+                    <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-[10px] py-[6px] max-w-[250px] shadow-sm">
+                      <p className="text-[13.5px] text-[#e9edef] leading-[19px]">✅ Entrada confirmada! Estoque atualizado.</p>
+                      <div className="flex justify-end mt-[2px]">
+                        <span className="text-[11px] text-[#ffffff66]">14:33</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* User asks question */}
+                  <div className="flex justify-end mb-[2px]">
+                    <div className="bg-[#005c4b] rounded-lg rounded-tr-none px-[10px] py-[6px] max-w-[230px] shadow-sm">
+                      <div className="flex items-end gap-2">
+                        <span className="text-[13.5px] text-[#e9edef]">quanto tem de granola?</span>
+                        <div className="flex items-center gap-1 mb-[1px] shrink-0">
+                          <span className="text-[11px] text-[#ffffff99]">14:34</span>
+                          <svg viewBox="0 0 16 11" className="w-4 h-[11px] text-[#53bdeb]" fill="currentColor"><path d="M11.07.66L5.4 6.33 3.04 3.98l-.87.87 3.24 3.24 6.54-6.54z"/><path d="M15.07.66L9.4 6.33 8.1 5.03l-.87.87 2.17 2.17 6.54-6.54z"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bot answers */}
+                  <div className="flex justify-start">
+                    <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-[10px] py-[6px] max-w-[250px] shadow-sm">
+                      <p className="text-[13.5px] text-[#e9edef] leading-[19px]">📊 Estoque de <span className="font-semibold">Granola</span>: 15 pct</p>
+                      <p className="text-[12.5px] text-[#e9edef]/60 mt-[2px]">Consumo médio: 2.1 pct/dia<br/>Duração estimada: ~7 dias ✅</p>
+                      <div className="flex justify-end mt-[2px]">
+                        <span className="text-[11px] text-[#ffffff66]">14:34</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Chat messages */}
-                <div className="p-3 space-y-3 min-h-[320px] bg-[#0b141a]">
-                  {/* User message — photo */}
-                  <div className="flex justify-end">
-                    <div className="bg-emerald-800/40 rounded-lg px-3 py-2 max-w-[220px]">
-                      <div className="bg-muted/20 rounded h-28 flex items-center justify-center mb-1">
-                        <Image className="h-8 w-8 text-muted-foreground/30" />
-                      </div>
-                      <p className="text-[11px] text-emerald-100/70">
-                        nota-fiscal.jpg
-                      </p>
-                      <p className="text-[9px] text-emerald-200/40 text-right mt-1">
-                        14:32
-                      </p>
-                    </div>
+                {/* Input bar */}
+                <div className="bg-[#1f2c34] px-2 py-[6px] flex items-center gap-2 border-t border-[#313d45]">
+                  <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-[7px] flex items-center">
+                    <span className="text-[14px] text-[#8696a0]">Mensagem</span>
                   </div>
-
-                  {/* Bot response — extraction */}
-                  <div className="flex justify-start">
-                    <div className="bg-[#1f2c34] rounded-lg px-3 py-2 max-w-[240px]">
-                      <p className="text-[11px] text-gray-200">
-                        *Entrada #47 registrada!*
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        Polpa de Açaí 10kg: 5 cx
-                        <br />
-                        Granola: 3 pct (R$45,00)
-                        <br />
-                        Leite Condensado: 12 un
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-2">
-                        Responda <strong>ok</strong> para confirmar
-                      </p>
-                      <p className="text-[9px] text-gray-500 text-right mt-1">
-                        14:32
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* User confirms */}
-                  <div className="flex justify-end">
-                    <div className="bg-emerald-800/40 rounded-lg px-3 py-2">
-                      <p className="text-[11px] text-emerald-100">ok</p>
-                      <p className="text-[9px] text-emerald-200/40 text-right mt-1">
-                        14:33
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Bot confirmation */}
-                  <div className="flex justify-start">
-                    <div className="bg-[#1f2c34] rounded-lg px-3 py-2 max-w-[240px]">
-                      <p className="text-[11px] text-gray-200">
-                        Entrada confirmada! Estoque atualizado.
-                      </p>
-                      <p className="text-[9px] text-gray-500 text-right mt-1">
-                        14:33
-                      </p>
-                    </div>
+                  <div className="h-9 w-9 rounded-full bg-[#00a884] flex items-center justify-center">
+                    <Mic className="h-5 w-5 text-[#1f2c34]" />
                   </div>
                 </div>
               </div>
