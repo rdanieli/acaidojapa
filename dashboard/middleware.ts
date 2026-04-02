@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   '/landing',
   '/login',
   '/registro',
+  '/docs',
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/session',
