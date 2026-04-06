@@ -1,9 +1,10 @@
 import { db } from '@/lib/db';
-import { inventoryEntries, inventoryItems, products, stockMovements } from '@/lib/db/schema';
+import { inventoryEntries, inventoryItems, products, stockMovements, pendingAdminCommands } from '@/lib/db/schema';
 import { eq, and, desc, lt, sql } from 'drizzle-orm';
 import { sendMessage } from './evolution';
 import { convertToGrams } from '@/lib/stock/convert-units';
 import { checkAndCreateAlerts } from '@/lib/stock/check-alerts';
+import { addBotResponseToHistory } from './admin-commands';
 
 const CONFIRM_WORDS = ['ok', 'sim', 'confirma', 'confirmar', 'confirmado', 'certo'];
 const REJECT_WORDS = ['cancelar', 'cancela', 'nao', 'não', 'n', 'errado'];
@@ -15,6 +16,71 @@ export async function handleConfirmation(phone: string, text: string, tenantId?:
   const isReject = REJECT_WORDS.some((w) => normalized === w || normalized.startsWith(w));
 
   if (!isConfirm && !isReject) return false;
+
+  // --- Check for pending admin command first ---
+  const adminConditions = [
+    eq(pendingAdminCommands.senderPhone, phone),
+    eq(pendingAdminCommands.status, 'pending'),
+  ];
+  if (tenantId != null) adminConditions.push(eq(pendingAdminCommands.tenantId, tenantId));
+
+  const [pendingAdmin] = await db.select().from(pendingAdminCommands)
+    .where(and(...adminConditions))
+    .orderBy(desc(pendingAdminCommands.createdAt))
+    .limit(1);
+
+  if (pendingAdmin) {
+    const effTenant = tenantId ?? pendingAdmin.tenantId;
+
+    if (isReject) {
+      await db.update(pendingAdminCommands)
+        .set({ status: 'canceled', confirmedAt: new Date() })
+        .where(eq(pendingAdminCommands.id, pendingAdmin.id));
+      const msg = `❌ Ajuste de *${pendingAdmin.productName}* cancelado.`;
+      await sendMessage(phone, msg, effTenant);
+      addBotResponseToHistory(phone, msg);
+      return true;
+    }
+
+    // Confirm: apply the change
+    const newValue = Number(pendingAdmin.newValue);
+    const oldValue = pendingAdmin.oldValue ? Number(pendingAdmin.oldValue) : 0;
+
+    if (pendingAdmin.commandType === 'adjust_stock') {
+      const difference = newValue - oldValue;
+      await db.update(products)
+        .set({ currentStock: String(newValue) })
+        .where(and(eq(products.id, pendingAdmin.productId), eq(products.tenantId, effTenant)));
+
+      await db.insert(stockMovements).values({
+        tenantId: effTenant,
+        productId: pendingAdmin.productId,
+        type: 'ajuste',
+        quantity: String(difference),
+        unit: pendingAdmin.unit || 'g',
+        notes: `Ajuste via WhatsApp confirmado: ${oldValue} → ${newValue}`,
+        createdBy: phone,
+      });
+
+      const msg = `✅ *${pendingAdmin.productName}* ajustado!\n\nAntes: ${oldValue} ${pendingAdmin.unit || ''}\nAgora: ${newValue} ${pendingAdmin.unit || ''}\nDiferença: ${difference > 0 ? '+' : ''}${difference}`;
+      await sendMessage(phone, msg, effTenant);
+      addBotResponseToHistory(phone, msg);
+    } else if (pendingAdmin.commandType === 'set_cost') {
+      await db.update(products)
+        .set({ costPerUnit: String(newValue) })
+        .where(and(eq(products.id, pendingAdmin.productId), eq(products.tenantId, effTenant)));
+
+      const msg = `✅ Custo de *${pendingAdmin.productName}* atualizado!\n\n${oldValue > 0 ? `Antes: R$ ${oldValue.toFixed(2)}` : 'Antes: não definido'}\nAgora: R$ ${newValue.toFixed(2)}`;
+      await sendMessage(phone, msg, effTenant);
+      addBotResponseToHistory(phone, msg);
+    }
+
+    await db.update(pendingAdminCommands)
+      .set({ status: 'confirmed', confirmedAt: new Date() })
+      .where(eq(pendingAdminCommands.id, pendingAdmin.id));
+
+    return true;
+  }
 
   // Find latest pending entry from this phone
   const pendingConditions = [

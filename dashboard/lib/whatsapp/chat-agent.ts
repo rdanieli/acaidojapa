@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { products, stockAlerts, stockMovements, orders, orderItems } from '@/lib/db/schema';
 import { eq, gte, and, sql, desc, ilike } from 'drizzle-orm';
 import { sendMessage } from './evolution';
+import { addBotResponseToHistory } from './admin-commands';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -308,6 +309,7 @@ export async function handleQuestion(phone: string, text: string, tenantId?: num
 
     if (response) {
       await sendMessage(phone, response, tenantId);
+      addBotResponseToHistory(phone, response);
     } else {
       await sendFallbackResponse(phone, tenantId);
     }

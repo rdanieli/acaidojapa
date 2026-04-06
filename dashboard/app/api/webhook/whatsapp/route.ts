@@ -158,6 +158,12 @@ export async function POST(request: NextRequest) {
     const hasImage = !!message.imageMessage;
     const hasAudio = !!message.audioMessage;
 
+    // Add user text to history for context in future commands
+    if (textContent && !hasImage && !hasAudio) {
+      const { addToHistory } = await import('@/lib/whatsapp/admin-commands');
+      addToHistory(replyTo, textContent);
+    }
+
     // 3. Check for inventory confirmation reply (ok/cancelar)
     if (textContent && !hasImage && !hasAudio) {
       const handled = await handleConfirmation(replyTo, textContent, tenantId);

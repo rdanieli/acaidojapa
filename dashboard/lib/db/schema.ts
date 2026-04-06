@@ -328,6 +328,22 @@ export const tenantSettings = pgTable('tenant_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Pending admin commands awaiting WhatsApp confirmation */
+export const pendingAdminCommands = pgTable('pending_admin_commands', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().references(() => tenants.id),
+  senderPhone: text('sender_phone').notNull(),
+  commandType: text('command_type').notNull(), // 'adjust_stock' | 'set_cost'
+  productId: integer('product_id').notNull().references(() => products.id),
+  productName: text('product_name').notNull(),
+  oldValue: numeric('old_value', { precision: 10, scale: 3 }),
+  newValue: numeric('new_value', { precision: 10, scale: 3 }).notNull(),
+  unit: text('unit'),
+  status: text('status').notNull().default('pending'), // 'pending' | 'confirmed' | 'canceled'
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+});
+
 /** API Keys for Ingest API */
 export const apiKeys = pgTable('api_keys', {
   id: serial('id').primaryKey(),
