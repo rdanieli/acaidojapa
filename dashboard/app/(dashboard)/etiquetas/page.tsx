@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useProductsCatalog } from '@/hooks/use-dashboard';
+import { useSession } from '@/hooks/use-session';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,20 +11,25 @@ import JsBarcode from 'jsbarcode';
 
 const printStyles = `
   @media print {
+    @page { size: 80mm auto; margin: 0; }
     body * { visibility: hidden; }
     .label-print-area, .label-print-area * { visibility: visible; }
     .label-print-area { position: absolute; left: 0; top: 0; }
     .label-item {
-      width: 50mm; height: 30mm;
-      border: 1px solid #000;
-      padding: 2mm;
+      width: 70mm; height: 50mm;
+      box-sizing: border-box;
+      padding: 3mm;
       page-break-inside: avoid;
-      margin-bottom: 2mm;
+      page-break-after: always;
       font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
-    .label-item .product-name { font-size: 10pt; font-weight: bold; }
-    .label-item .label-info { font-size: 8pt; }
-    .label-item .label-barcode svg { width: 100%; max-height: 30px; }
+    .label-item .product-name { font-size: 13pt; font-weight: bold; line-height: 1.1; }
+    .label-item .label-info { font-size: 10pt; line-height: 1.3; }
+    .label-item .label-responsavel { font-size: 9pt; font-style: italic; }
+    .label-item .label-barcode svg { width: 100%; max-height: 50px; }
   }
 `;
 
@@ -64,6 +70,8 @@ function BarcodeDisplay({ value }: { value: string }) {
 
 export default function EtiquetasPage() {
   const { data: catalogData } = useProductsCatalog();
+  const { data: sessionData } = useSession();
+  const loggedInName = sessionData?.session?.name ?? '';
   const products = (catalogData?.products ?? []).filter((p: any) => p.active);
 
   const today = new Date().toISOString().split('T')[0];
@@ -75,6 +83,14 @@ export default function EtiquetasPage() {
   const [lote, setLote] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [barcode, setBarcode] = useState<string | null>(null);
+  const [responsavel, setResponsavel] = useState('');
+
+  // Pre-fill responsible with logged-in user's name once session loads
+  useEffect(() => {
+    if (loggedInName && !responsavel) {
+      setResponsavel(loggedInName);
+    }
+  }, [loggedInName, responsavel]);
 
   const selectedProduct = products.find((p: any) => String(p.id) === selectedProductId);
 
@@ -231,6 +247,17 @@ export default function EtiquetasPage() {
               </div>
             )}
 
+            {/* Responsavel */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Responsavel</label>
+              <Input
+                value={responsavel}
+                onChange={(e) => setResponsavel(e.target.value)}
+                placeholder="Nome do responsavel"
+                className="mt-1"
+              />
+            </div>
+
             {/* Quantity */}
             <div>
               <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
@@ -267,24 +294,27 @@ export default function EtiquetasPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
-                {/* Single preview label */}
-                <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 w-[200px] min-h-[120px] flex flex-col justify-center">
-                  <p className="font-bold text-sm leading-tight">
+                {/* Single preview label — proportional to 70mm x 50mm */}
+                <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 w-[280px] h-[200px] flex flex-col justify-between">
+                  <p className="font-bold text-base leading-tight">
                     {selectedProduct?.name ?? '—'}
                   </p>
                   {labelType === 'validade' ? (
-                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                    <div className="space-y-0.5 text-sm text-muted-foreground">
                       <p>Fab: {formatDate(fabricationDate)}</p>
                       <p>Val: {formatDate(expiryDate)}</p>
                       {lote && <p>Lote: {lote}</p>}
                     </div>
                   ) : (
-                    <div className="mt-2 text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       <p>Data: {formatDate(fabricationDate)}</p>
                     </div>
                   )}
+                  {responsavel && (
+                    <p className="text-xs italic text-muted-foreground">Resp: {responsavel}</p>
+                  )}
                   {barcode && (
-                    <div className="mt-2">
+                    <div>
                       <BarcodeDisplay value={barcode} />
                     </div>
                   )}
@@ -312,6 +342,9 @@ export default function EtiquetasPage() {
                 <div className="label-info">
                   <div>Data: {formatDate(fabricationDate)}</div>
                 </div>
+              )}
+              {responsavel && (
+                <div className="label-responsavel">Resp: {responsavel}</div>
               )}
               {barcode && (
                 <div className="label-barcode">

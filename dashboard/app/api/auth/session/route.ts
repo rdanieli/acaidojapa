@@ -17,12 +17,14 @@ export async function GET() {
       onboardingCompleted: tenants.onboardingCompleted,
     }).from(tenants).where(eq(tenants.id, session.tenantId)).limit(1);
 
-    // Fetch user's allowed modules
+    // Fetch user's allowed modules and name
     let allowedModules: string[] | null = null;
+    let name: string | null = null;
     if (session.userId > 0) {
-      const [user] = await db.select({ allowedModules: users.allowedModules })
+      const [user] = await db.select({ allowedModules: users.allowedModules, name: users.name })
         .from(users).where(eq(users.id, session.userId)).limit(1);
       allowedModules = (user?.allowedModules as string[] | null) || null;
+      name = user?.name || null;
     }
 
     return NextResponse.json({
@@ -31,6 +33,7 @@ export async function GET() {
         tenantId: session.tenantId,
         role: session.role,
         email: session.email,
+        name,
         allowedModules,
         tenant: tenant || null,
       },
