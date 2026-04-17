@@ -69,10 +69,11 @@ function BarcodeDisplay({ value }: { value: string }) {
 }
 
 export default function EtiquetasPage() {
-  const { data: catalogData } = useProductsCatalog();
+  const { data: catalogData, isLoading: loadingProducts, error: productsError } = useProductsCatalog();
   const { data: sessionData } = useSession();
   const loggedInName = sessionData?.session?.name ?? '';
-  const products = (catalogData?.products ?? []).filter((p: any) => p.active);
+  const allProducts = catalogData?.products ?? [];
+  const products = allProducts.filter((p: any) => p.active);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -160,14 +161,32 @@ export default function EtiquetasPage() {
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={loadingProducts || products.length === 0}
               >
-                <option value="">Selecione um produto...</option>
+                <option value="">
+                  {loadingProducts
+                    ? 'Carregando produtos...'
+                    : productsError
+                    ? 'Erro ao carregar produtos'
+                    : products.length === 0
+                    ? allProducts.length === 0
+                      ? 'Nenhum produto cadastrado'
+                      : 'Nenhum produto ativo'
+                    : 'Selecione um produto...'}
+                </option>
                 {products.map((p: any) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
               </select>
+              {!loadingProducts && !productsError && products.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {allProducts.length === 0
+                    ? 'Cadastre produtos em Configuracoes ou Estoque antes de imprimir etiquetas.'
+                    : `${allProducts.length} produto(s) cadastrado(s), mas todos estao inativos. Reative em Configuracoes.`}
+                </p>
+              )}
             </div>
 
             {/* Label type */}
