@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { products } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { getTenantScope } from '@/lib/db/tenant';
 
 // Generate a unique barcode: tenant prefix + product id, padded to 12 digits + check digit
@@ -33,6 +33,23 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Build candidate barcodes to handle scanner quirks:
+// - UPC-A vs EAN-13: scanners often strip leading "0" from EAN-13, returning 12 digits
+// - Some scanners pad to 13 digits; others don't
+function candidateBarcodes(raw: string): string[] {
+  const code = raw.trim();
+  const candidates = new Set<string>([code]);
+  if (/^\d+$/.test(code)) {
+    // If 12 digits, try with leading "0" (EAN-13 with zero prefix)
+    if (code.length === 12) candidates.add('0' + code);
+    // If 13 digits starting with "0", try without leading zero (UPC-A form)
+    if (code.length === 13 && code.startsWith('0')) candidates.add(code.slice(1));
+    // If 11 digits, try with two leading zeros
+    if (code.length === 11) candidates.add('00' + code);
+  }
+  return Array.from(candidates);
+}
+
 // GET: lookup product by barcode
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +58,9 @@ export async function GET(request: NextRequest) {
     const barcode = searchParams.get('barcode');
     if (!barcode) return NextResponse.json({ error: 'barcode obrigatório' }, { status: 400 });
 
+    const candidates = candidateBarcodes(barcode);
     const [product] = await db.select().from(products)
-      .where(and(eq(products.barcode, barcode), eq(products.tenantId, tenantId)))
+      .where(and(inArray(products.barcode, candidates), eq(products.tenantId, tenantId)))
       .limit(1);
 
     if (!product) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
