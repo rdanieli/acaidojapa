@@ -63,7 +63,7 @@ export function Sidebar() {
         </div>
         <div>
           <span className="font-bold text-sm tracking-tight">{tenantName}</span>
-          <p className="text-[10px] text-muted-foreground/60 font-medium">Tongo Gestão</p>
+          <p className="text-[10px] text-muted-foreground/60 font-medium">Japa Gestão</p>
         </div>
         <div className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-acai/40 via-acai/20 to-transparent" />
       </div>

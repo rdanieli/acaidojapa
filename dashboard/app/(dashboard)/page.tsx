@@ -27,7 +27,7 @@ export default function DashboardPage() {
               <Rocket className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Bem-vindo ao Tongo Gestão!</h2>
+              <h2 className="text-lg font-semibold">Bem-vindo ao Japa Gestão!</h2>
               <p className="text-sm text-muted-foreground">Aqui vão aparecer suas vendas e métricas. Para começar:</p>
             </div>
           </div>

@@ -15,7 +15,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Tongo Gestão — Seu estoque mais inteligente',
+  title: 'Japa Gestão — Seu estoque mais inteligente',
   description: 'Plataforma de gestão de estoque, vendas e operações para food service',
 };
 

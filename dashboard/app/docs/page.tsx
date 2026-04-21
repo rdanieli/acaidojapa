@@ -267,7 +267,7 @@ export default function DocsPage() {
               <Store className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight gradient-text">
-              Tongo Gestao
+              Japa Gestão
             </span>
           </a>
           <div className="flex items-center gap-3">
@@ -299,7 +299,7 @@ export default function DocsPage() {
             <span className="gradient-text">API</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Integre qualquer sistema com o Tongo Gestao
+            Integre qualquer sistema com o Japa Gestão
           </p>
         </div>
       </section>
@@ -479,11 +479,11 @@ export default function DocsPage() {
                 <Store className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-semibold gradient-text">
-                Tongo Gestao
+                Japa Gestão
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 Tongo Gestao. Todos os direitos reservados.
+              &copy; 2026 Japa Gestão. Todos os direitos reservados.
             </p>
           </div>
         </div>

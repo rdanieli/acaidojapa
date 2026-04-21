@@ -54,7 +54,7 @@ export default function RegistroPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold gradient-text">Tongo Gestão</h1>
+          <h1 className="text-2xl font-bold gradient-text">Japa Gestão</h1>
           <p className="text-sm text-muted-foreground mt-1">Crie sua conta e comece a gerenciar seu negócio</p>
         </div>
 
@@ -85,7 +85,7 @@ export default function RegistroPage() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="joao@acaidojapa.com"
+              placeholder="joao@seurestaurante.com.br"
               required
               className="mt-1"
             />

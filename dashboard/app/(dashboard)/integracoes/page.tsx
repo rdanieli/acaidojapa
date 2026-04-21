@@ -141,7 +141,7 @@ export default function IntegracoesPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Integrações</h1>
-            <p className="text-sm text-muted-foreground">Conecte sistemas externos ao Tongo Gestão</p>
+            <p className="text-sm text-muted-foreground">Conecte sistemas externos ao Japa Gestão</p>
           </div>
         </div>
       </div>

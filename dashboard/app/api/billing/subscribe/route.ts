@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       customerId: tenant.asaasCustomerId,
       creditCardToken: tenant.asaasCardToken,
       value: planData.value,
-      description: `Tongo Gestão — Plano ${planData.name}`,
+      description: `Japa Gestão — Plano ${planData.name}`,
       externalReference: `tenant-${session.tenantId}-${plan}`,
     });
 

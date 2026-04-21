@@ -1,7 +1,7 @@
 /**
  * Evolution API instance management for multi-tenant WhatsApp.
  *
- * Uses Tongo's centralized Evolution API server to create/manage
+ * Uses the centralized Evolution API server to create/manage
  * one instance per tenant. Each instance = one WhatsApp number.
  *
  * Env vars: EVOLUTION_API_URL (server), EVOLUTION_API_KEY (global admin key)
