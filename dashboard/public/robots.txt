@@ -1,5 +1,4 @@
 User-agent: *
-Allow: /landing
 Allow: /login
 Allow: /registro
 Disallow: /api/
@@ -7,5 +6,3 @@ Disallow: /estoque
 Disallow: /pedidos
 Disallow: /financeiro
 Disallow: /configuracoes
-
-Sitemap: https://tongo.gestao.app/sitemap.xml

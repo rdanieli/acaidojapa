@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const PUBLIC_PATHS = [
-  '/landing',
   '/login',
   '/registro',
   '/docs',
@@ -19,6 +18,8 @@ const PUBLIC_PATHS = [
   '/api/v1',
 ];
 
+const UNAUTH_REDIRECT_URL = 'https://japagestao.com.br';
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -34,8 +35,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
 
   if (!token) {
-    // Unauthenticated users go to landing page instead of login
-    return NextResponse.redirect(new URL('/landing', request.url));
+    return NextResponse.redirect(UNAUTH_REDIRECT_URL);
   }
 
   try {
@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch {
-    const response = NextResponse.redirect(new URL('/landing', request.url));
+    const response = NextResponse.redirect(UNAUTH_REDIRECT_URL);
     response.cookies.delete('auth-token');
     return response;
   }

@@ -34,7 +34,7 @@ const apiEvents = [
   { event: 'expense.created', description: 'Registra uma despesa ou custo operacional' },
 ];
 
-const curlExample = `curl -X POST https://japa.divinify.app/api/v1/ingest \\
+const curlExample = `curl -X POST https://app.japagestao.com.br/api/v1/ingest \\
   -H "Authorization: Bearer tng_k_..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -55,7 +55,7 @@ const curlExample = `curl -X POST https://japa.divinify.app/api/v1/ingest \\
 const pythonExample = `import requests
 
 response = requests.post(
-    "https://japa.divinify.app/api/v1/ingest",
+    "https://app.japagestao.com.br/api/v1/ingest",
     headers={
         "Authorization": "Bearer tng_k_...",
         "Content-Type": "application/json",
@@ -77,7 +77,7 @@ response = requests.post(
 )
 print(response.json())`;
 
-const nodeExample = `const res = await fetch("https://japa.divinify.app/api/v1/ingest", {
+const nodeExample = `const res = await fetch("https://app.japagestao.com.br/api/v1/ingest", {
   method: "POST",
   headers: {
     "Authorization": "Bearer tng_k_...",
@@ -286,7 +286,7 @@ export default function IntegracoesPage() {
               <h3 className="text-sm font-medium mb-2">Endpoint</h3>
               <code className="block text-xs bg-muted/50 rounded-lg px-4 py-3 font-mono">
                 <span className="text-emerald-600 font-semibold">POST</span>{' '}
-                https://japa.divinify.app/api/v1/ingest
+                https://app.japagestao.com.br/api/v1/ingest
               </code>
             </div>
 

@@ -35,7 +35,7 @@ function getBaseUrl(request: NextRequest): string {
   if (origin) return origin;
   const referer = request.headers.get('referer');
   if (referer) return new URL(referer).origin;
-  return 'https://staging.japa.divinify.app';
+  return 'https://staging.app.japagestao.com.br';
 }
 
 /** Auto-save Evolution config to tenantSettings so evolution.ts can send messages */

@@ -43,7 +43,7 @@ services:
       EVOLUTION_API_URL: http://evolution-staging:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY_STAGING:-tongo-staging-key-2026}
       EVOLUTION_INSTANCE_NAME: ""
-      NEXT_PUBLIC_APP_URL: https://staging.japa.divinify.app
+      NEXT_PUBLIC_APP_URL: https://staging.app.japagestao.com.br
       CRON_SECRET: ${CRON_SECRET}
       WEBHOOK_SECRET: ""
       # Asaas billing (sandbox) — $$ escapes to literal $ in docker compose

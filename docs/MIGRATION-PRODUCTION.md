@@ -28,7 +28,6 @@ crons funcionam. As mudanças são aditivas (novas tabelas, novas colunas, novas
 - Banner de boas-vindas some automaticamente quando tem dados (ele já tem)
 
 ### O que NÃO aparece pro Felippe:
-- Landing page (`/landing`) — só pra visitantes não logados
 - Página de registro (`/registro`) — só pra novos clientes
 - Onboarding wizard — só pra novos tenants (Felippe já tá marcado como onboarded)
 
@@ -42,19 +41,19 @@ crons funcionam. As mudanças são aditivas (novas tabelas, novas colunas, novas
 
 #### Passo 1: Backup do banco de produção
 ```bash
-ssh root@divinify.app "docker exec acaidojapa-postgres pg_dump -U acaidojapa acaidojapa > /opt/acaidojapa/backup-antes-saas.sql"
+ssh root@app.japagestao.com.br "docker exec acaidojapa-postgres pg_dump -U acaidojapa acaidojapa > /opt/acaidojapa/backup-antes-saas.sql"
 ```
 Verificar que o backup foi criado:
 ```bash
-ssh root@divinify.app "ls -lh /opt/acaidojapa/backup-antes-saas.sql"
+ssh root@app.japagestao.com.br "ls -lh /opt/acaidojapa/backup-antes-saas.sql"
 ```
 
 #### Passo 2: Verificar que produção está estável
 ```bash
-ssh root@divinify.app "docker compose ps"
+ssh root@app.japagestao.com.br "docker compose ps"
 # Todos os containers devem estar "Up" e "healthy"
 
-curl -s -o /dev/null -w "%{http_code}" https://japa.divinify.app/login
+curl -s -o /dev/null -w "%{http_code}" https://app.japagestao.com.br/login
 # Deve retornar 200
 ```
 
@@ -86,7 +85,7 @@ gh run list --branch main --limit 1
 
 #### Passo 6: Verificar que o container reiniciou
 ```bash
-ssh root@divinify.app "docker compose ps"
+ssh root@app.japagestao.com.br "docker compose ps"
 # acaidojapa-dashboard deve mostrar "Up X seconds"
 ```
 
@@ -94,12 +93,12 @@ ssh root@divinify.app "docker compose ps"
 
 #### Passo 7: Copiar SQL de migração pro servidor
 ```bash
-scp /tmp/migrate-schema.sql root@divinify.app:/tmp/migrate-schema.sql
+scp /tmp/migrate-schema.sql root@app.japagestao.com.br:/tmp/migrate-schema.sql
 ```
 
 #### Passo 8: Adicionar novas tabelas e colunas
 ```bash
-ssh root@divinify.app "docker cp /tmp/migrate-schema.sql acaidojapa-postgres:/tmp/migrate-schema.sql && docker exec acaidojapa-postgres psql -U acaidojapa -d acaidojapa -f /tmp/migrate-schema.sql"
+ssh root@app.japagestao.com.br "docker cp /tmp/migrate-schema.sql acaidojapa-postgres:/tmp/migrate-schema.sql && docker exec acaidojapa-postgres psql -U acaidojapa -d acaidojapa -f /tmp/migrate-schema.sql"
 ```
 **Resultado esperado:**
 - 9x `CREATE TABLE` (tenants, users, tenant_settings, suppliers, manual_sales, waste_entries, checklist_templates, checklist_runs, locations)
@@ -108,7 +107,7 @@ ssh root@divinify.app "docker cp /tmp/migrate-schema.sql acaidojapa-postgres:/tm
 
 #### Passo 9: Rodar script de migração
 ```bash
-ssh root@divinify.app "docker exec acaidojapa-dashboard node scripts/migrate-to-multitenant.js"
+ssh root@app.japagestao.com.br "docker exec acaidojapa-dashboard node scripts/migrate-to-multitenant.js"
 ```
 **Resultado esperado:**
 ```
@@ -129,7 +128,7 @@ ssh root@divinify.app "docker exec acaidojapa-dashboard node scripts/migrate-to-
 
 #### Passo 10: Reiniciar o dashboard pra limpar caches
 ```bash
-ssh root@divinify.app "cd /opt/acaidojapa && docker compose up -d --force-recreate dashboard"
+ssh root@app.japagestao.com.br "cd /opt/acaidojapa && docker compose up -d --force-recreate dashboard"
 ```
 
 ### Verificação
@@ -137,13 +136,13 @@ ssh root@divinify.app "cd /opt/acaidojapa && docker compose up -d --force-recrea
 #### Passo 11: Testar login (ambos os métodos)
 ```bash
 # Login antigo (env vars) — DEVE FUNCIONAR
-curl -s -w "%{http_code}" -X POST https://japa.divinify.app/api/auth/login \
+curl -s -w "%{http_code}" -X POST https://app.japagestao.com.br/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin","password":"acaidojapa2026"}'
 # Esperado: {"ok":true} 200
 
 # Login novo (email) — DEVE FUNCIONAR
-curl -s -w "%{http_code}" -X POST https://japa.divinify.app/api/auth/login \
+curl -s -w "%{http_code}" -X POST https://app.japagestao.com.br/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@acaidojapa.com","password":"acaidojapa2026"}'
 # Esperado: {"ok":true,"user":{"name":"Felippe","role":"owner"}} 200
@@ -151,20 +150,20 @@ curl -s -w "%{http_code}" -X POST https://japa.divinify.app/api/auth/login \
 
 #### Passo 12: Testar dados
 ```bash
-COOKIE=$(curl -s -c - -X POST https://japa.divinify.app/api/auth/login \
+COOKIE=$(curl -s -c - -X POST https://app.japagestao.com.br/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin","password":"acaidojapa2026"}' | grep auth-token | awk '{print $NF}')
 
 # Produtos
-curl -s -b "auth-token=$COOKIE" https://japa.divinify.app/api/dashboard/products-catalog | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Products: {len(d[\"products\"])}')"
+curl -s -b "auth-token=$COOKIE" https://app.japagestao.com.br/api/dashboard/products-catalog | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Products: {len(d[\"products\"])}')"
 # Esperado: Products: 113
 
 # Métricas
-curl -s -b "auth-token=$COOKIE" "https://japa.divinify.app/api/dashboard/metrics?start=2026-03-22&end=2026-03-29" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Revenue: R\${d[\"totalRevenue\"]:.2f}, Orders: {d[\"orderCount\"]}')"
+curl -s -b "auth-token=$COOKIE" "https://app.japagestao.com.br/api/dashboard/metrics?start=2026-03-22&end=2026-03-29" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Revenue: R\${d[\"totalRevenue\"]:.2f}, Orders: {d[\"orderCount\"]}')"
 # Esperado: Revenue e orders com valores reais
 
 # WhatsApp
-curl -s -b "auth-token=$COOKIE" https://japa.divinify.app/api/dashboard/whatsapp | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])"
+curl -s -b "auth-token=$COOKIE" https://app.japagestao.com.br/api/dashboard/whatsapp | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])"
 # Esperado: "connected" (ou "connecting")
 ```
 
@@ -178,7 +177,7 @@ curl -s -X POST http://localhost:3001/api/dashboard/orders/sync \
 ```
 
 #### Passo 14: Abrir no browser
-Abrir https://japa.divinify.app no browser e verificar:
+Abrir https://app.japagestao.com.br no browser e verificar:
 - [ ] Dashboard carrega com gráficos e KPIs
 - [ ] Sidebar mostra nome "Açaí do Japa" no topo
 - [ ] Sino de notificações aparece
@@ -193,7 +192,7 @@ Abrir https://japa.divinify.app no browser e verificar:
 ### Rollback rápido: reverter o código
 ```bash
 # No servidor
-ssh root@divinify.app "cd /opt/acaidojapa && docker compose pull dashboard && docker compose up -d dashboard"
+ssh root@app.japagestao.com.br "cd /opt/acaidojapa && docker compose pull dashboard && docker compose up -d dashboard"
 # Isso puxa a imagem :latest que o CI acabou de buildar
 
 # Se precisar voltar pra versão anterior:
@@ -205,7 +204,7 @@ git push origin main
 
 ### Rollback completo: restaurar banco
 ```bash
-ssh root@divinify.app "
+ssh root@app.japagestao.com.br "
   docker exec acaidojapa-postgres psql -U acaidojapa -d postgres -c 'DROP DATABASE acaidojapa;' &&
   docker exec acaidojapa-postgres psql -U acaidojapa -d postgres -c 'CREATE DATABASE acaidojapa OWNER acaidojapa;' &&
   docker exec acaidojapa-postgres psql -U acaidojapa -d acaidojapa -f /opt/acaidojapa/backup-antes-saas.sql
