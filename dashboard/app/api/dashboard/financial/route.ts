@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { orders, orderItems, soldProducts, recipes, products, complementGramages, manualSales } from '@/lib/db/schema';
 import { and, gte, lte, eq, desc, inArray, sql } from 'drizzle-orm';
 import { parseOrderItem, clearParserCaches } from '@/lib/stock/parse-order-item';
+import { ingredientCostForGrams } from '@/lib/stock/ingredient-cost';
 import { getTenantScope } from '@/lib/db/tenant';
 
 /** Cup total weight = sizeMl in grams (200ml cup = 200g total) */
@@ -147,24 +148,10 @@ export async function GET(request: NextRequest) {
 
     const dailyMap = new Map<string, { revenue: number; cmv: number }>();
 
-    /** Calculate cost from a product's weight in grams */
     function getIngredientCostG(productId: number, quantityG: number): number {
       const info = productCostMap.get(productId);
-      if (!info || info.costPerUnit === 0) return 0;
-
-      if (info.defaultUnit === 'kg') {
-        return (quantityG / 1000) * info.costPerUnit;
-      } else if (info.defaultUnit === 'g') {
-        return quantityG * info.costPerUnit;
-      } else if (info.defaultUnit === 'L') {
-        return (quantityG / 1000) * info.costPerUnit;
-      } else if (info.defaultUnit === 'un') {
-        if (info.unitWeightG && info.unitWeightG > 0) {
-          return (quantityG / info.unitWeightG) * info.costPerUnit;
-        }
-        return quantityG * info.costPerUnit;
-      }
-      return (quantityG / 1000) * info.costPerUnit;
+      if (!info) return 0;
+      return ingredientCostForGrams(info.costPerUnit, info.defaultUnit, info.unitWeightG, quantityG);
     }
 
     /** Fallback: recipe-based cost for non-cup products (sucos, sorvetes, etc.) */
