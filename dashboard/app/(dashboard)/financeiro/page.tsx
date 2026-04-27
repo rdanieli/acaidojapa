@@ -6,6 +6,7 @@ import { useFinancial, usePurchases } from '@/hooks/use-dashboard';
 import { KpiCard } from '@/components/kpi-card';
 import { MarginTrendChart } from '@/components/charts/margin-trend-chart';
 import { PurchasesByCategoryChart, PurchasesTimelineChart } from '@/components/charts/purchases-chart';
+import { MapUnmappedAction } from '@/components/financial/map-unmapped-action';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -113,11 +114,14 @@ export default function FinanceiroPage() {
                     Esses itens vendidos não possuem alias ou receita cadastrada. O CMV deles está sendo calculado como R$ 0,00. Configure em Fichas Técnicas.
                   </p>
                   {fin.unmappedNames && fin.unmappedNames.length > 0 && (
-                    <div className="mt-2 max-h-32 overflow-y-auto">
+                    <div className="mt-2 max-h-48 overflow-y-auto space-y-0.5">
                       {fin.unmappedNames.map((item: { name: string; count: number }) => (
-                        <p key={item.name} className="text-xs text-muted-foreground/50 font-mono">
-                          {item.count}x — {item.name}
-                        </p>
+                        <div key={item.name} className="flex items-center justify-between gap-2 group">
+                          <p className="text-xs text-muted-foreground/50 font-mono truncate">
+                            {item.count}x — {item.name}
+                          </p>
+                          <MapUnmappedAction pdvName={item.name} />
+                        </div>
                       ))}
                     </div>
                   )}

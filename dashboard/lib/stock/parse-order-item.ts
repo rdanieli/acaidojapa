@@ -119,31 +119,58 @@ function detectCategory(norm: string): string | null {
   return null;
 }
 
+const TOKEN_STOP_WORDS = new Set(['de', 'do', 'da', 'com', 'e', 'a', 'o', 'no', 'na', 'em', 'um', 'uma']);
+
+function tokenize(s: string): string[] {
+  return normalize(s).split(/\s+/).filter(t => t.length > 1 && !TOKEN_STOP_WORDS.has(t));
+}
+
+/** True when every meaningful token of `text` appears in `productName`. */
+function allTokensPresent(text: string, productName: string): boolean {
+  const textTokens = tokenize(text);
+  if (textTokens.length === 0) return false;
+  const prodTokens = new Set(tokenize(productName));
+  return textTokens.every(t => prodTokens.has(t));
+}
+
 /** Find the best matching sold product */
 async function matchSoldProduct(text: string, sizeMl: number | null, tenantId: number): Promise<number | null> {
   const sp = await loadSoldProductCache(tenantId);
   const category = detectCategory(text);
+  const normText = normalize(text);
 
-  if (!category) return null;
+  // Path A: detected category — search within category, with size-based fallbacks
+  if (category) {
+    const candidates = sp.filter(p => p.category === category);
+    if (candidates.length > 0) {
+      const nameMatch = candidates.find(p => normalize(p.name).includes(normText));
+      if (nameMatch) return nameMatch.id;
 
-  const candidates = sp.filter(p => p.category === category);
-  if (candidates.length === 0) return null;
+      const tokenMatched = candidates.find(p => allTokensPresent(normText, p.name));
+      if (tokenMatched) return tokenMatched.id;
 
-  const normText = text.toLowerCase().trim();
-  const nameMatch = candidates.find(p => p.name.toLowerCase().includes(normText));
-  if (nameMatch) return nameMatch.id;
+      if (sizeMl) {
+        const exact = candidates.find(p => p.sizeMl === sizeMl);
+        if (exact) return exact.id;
 
-  if (sizeMl) {
-    const exact = candidates.find(p => p.sizeMl === sizeMl);
-    if (exact) return exact.id;
-
-    const sorted = [...candidates]
-      .filter(p => p.sizeMl != null)
-      .sort((a, b) => Math.abs(a.sizeMl! - sizeMl) - Math.abs(b.sizeMl! - sizeMl));
-    if (sorted.length > 0) return sorted[0].id;
+        const sorted = [...candidates]
+          .filter(p => p.sizeMl != null)
+          .sort((a, b) => Math.abs(a.sizeMl! - sizeMl) - Math.abs(b.sizeMl! - sizeMl));
+        if (sorted.length > 0) return sorted[0].id;
+      }
+      return candidates[0].id;
+    }
   }
 
-  return candidates[0].id;
+  // Path B: no category (or empty category bucket) — broad search across all sold products.
+  // Only matches when every meaningful token is present, so we don't false-match on partial overlap.
+  const broadName = sp.find(p => normalize(p.name).includes(normText));
+  if (broadName) return broadName.id;
+
+  const broadToken = sp.find(p => allTokensPresent(normText, p.name));
+  if (broadToken) return broadToken.id;
+
+  return null;
 }
 
 /** Match a complement fragment against known complements */
