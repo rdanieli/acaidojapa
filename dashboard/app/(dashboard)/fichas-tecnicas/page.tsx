@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Plus, ClipboardList, Trash2, Pencil, X, Check } from 'lucide-react';
+import { ingredientCostForGrams } from '@/lib/stock/ingredient-cost';
 
 interface RecipeItem {
   productId: number;
@@ -87,14 +88,18 @@ export default function FichasTecnicasPage() {
     setNewForm({ name: '', sizeMl: '', category: 'acai', price: '' });
   };
 
-  // Calculate recipe cost
+  // Calculate recipe cost — uses shared helper so this matches the Financeiro CMV exactly.
   const calcCost = () => {
     let total = 0;
     for (const item of recipeItems) {
       const product = catalogProducts.find((p: any) => p.id === item.productId);
-      if (!product || !product.costPerUnit || !product.unitWeightG) continue;
-      const costPerGram = Number(product.costPerUnit) / Number(product.unitWeightG);
-      total += costPerGram * item.quantityG;
+      if (!product || !product.costPerUnit) continue;
+      total += ingredientCostForGrams(
+        Number(product.costPerUnit),
+        product.defaultUnit || 'g',
+        product.unitWeightG ? Number(product.unitWeightG) : null,
+        item.quantityG,
+      );
     }
     return total;
   };
