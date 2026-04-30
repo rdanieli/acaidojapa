@@ -15,8 +15,24 @@ import { users, tenants } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyMagicLinkToken, createToken } from '@/lib/auth';
 
+/**
+ * Public-facing base URL of the dashboard. We can't rely on `request.url`
+ * because behind the nginx proxy Next.js sees the internal bind
+ * (http://0.0.0.0:3001), so absolute redirects need the real host.
+ */
+function publicBaseUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (host && !host.startsWith('0.0.0.0') && !host.startsWith('localhost')) {
+    return `${proto}://${host}`;
+  }
+  return 'https://app.japagestao.com.br';
+}
+
 function redirectWithError(request: NextRequest, message: string) {
-  const url = new URL('/login', request.url);
+  const base = publicBaseUrl(request);
+  const url = new URL('/login', base);
   url.searchParams.set('error', message);
   return NextResponse.redirect(url);
 }
@@ -50,7 +66,7 @@ export async function GET(request: NextRequest) {
   });
 
   const dest = tenant.onboardingCompleted ? '/' : '/onboarding';
-  const response = NextResponse.redirect(new URL(dest, request.url));
+  const response = NextResponse.redirect(new URL(dest, publicBaseUrl(request)));
   response.cookies.set('auth-token', sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
