@@ -7,7 +7,9 @@ const PUBLIC_PATHS = [
   '/docs',
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/magic-link',
   '/api/auth/session',
+  '/api/billing/stripe-provision',
   '/api/webhook',
   // Cron-callable paths (auth checked in route handler via CRON_SECRET)
   '/api/dashboard/stock/process-daily-sales',

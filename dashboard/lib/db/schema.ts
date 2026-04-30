@@ -8,12 +8,16 @@ export const tenants = pgTable('tenants', {
   plan: text('plan').notNull().default('free'), // 'free' | 'starter' | 'pro'
   onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
   active: boolean('active').notNull().default(true),
-  // Billing (Asaas)
+  // Billing (Asaas — legacy, kept for existing customers)
   asaasCustomerId: text('asaas_customer_id'),
   asaasCardToken: text('asaas_card_token'),
   asaasCardLast4: text('asaas_card_last4'),
   asaasCardBrand: text('asaas_card_brand'),
   asaasSubscriptionId: text('asaas_subscription_id'),
+  // Billing (Stripe — for new sign-ups via japagestao.com.br landing)
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  stripePriceId: text('stripe_price_id'),
   billingStatus: text('billing_status').notNull().default('trial'), // 'trial' | 'active' | 'past_due' | 'canceled'
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

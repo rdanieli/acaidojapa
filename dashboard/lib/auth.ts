@@ -34,6 +34,28 @@ export async function verifyToken(token: string): Promise<SessionPayload> {
   return payload as unknown as SessionPayload;
 }
 
+/**
+ * Short-lived (30 min) token for magic-link first login. Same JWT secret
+ * but a `purpose: 'magic-link'` claim that the magic-link endpoint checks.
+ */
+const MAGIC_LINK_TTL = '30m';
+
+export async function createMagicLinkToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ ...payload, purpose: 'magic-link' } as any)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(MAGIC_LINK_TTL)
+    .sign(JWT_SECRET);
+}
+
+export async function verifyMagicLinkToken(token: string): Promise<SessionPayload> {
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  if ((payload as any).purpose !== 'magic-link') {
+    throw new Error('Token purpose mismatch');
+  }
+  const { purpose: _purpose, ...session } = payload as any;
+  return session as SessionPayload;
+}
+
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth-token')?.value;
