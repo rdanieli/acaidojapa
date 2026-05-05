@@ -24,6 +24,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!sessionData?.session) return;
     const session = sessionData.session;
 
+    // Force password setup before anything else — Stripe-provisioned users
+    // start with a random password they can't use to log in again.
+    if (session.passwordIsTemporary) {
+      router.push('/define-senha');
+      return;
+    }
+
     // Redirect to onboarding if not completed
     if (session.tenant && !session.tenant.onboardingCompleted && pathname !== '/onboarding') {
       router.push('/onboarding');
