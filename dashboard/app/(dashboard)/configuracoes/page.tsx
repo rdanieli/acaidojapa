@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Settings, Plus, Pencil, Check, X, UserPlus, Users, Power, PowerOff, Link, Save, CheckCircle, CreditCard } from 'lucide-react';
+import { Settings, Plus, Pencil, Check, X, UserPlus, Users, Power, PowerOff, Link, Save, CheckCircle, CreditCard, ExternalLink } from 'lucide-react';
 import { ALL_MODULES } from '@/components/sidebar';
+import { useSession } from '@/hooks/use-session';
 
 const ROLES = [
   { value: 'owner', label: 'Dono' },
@@ -229,12 +230,31 @@ const PLANS = [
 
 function BillingTab() {
   const { data, isLoading } = useBillingStatus();
+  const { data: sessionData } = useSession();
   const subscribe = useSubscribe();
   const [subscribeError, setSubscribeError] = useState('');
   const [subscribeSuccess, setSubscribeSuccess] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState('');
 
   const currentPlan = data?.plan || 'free';
   const card = data?.card;
+  const isStripe = data?.provider === 'stripe' || sessionData?.session?.tenant?.hasStripeSubscription;
+  const sub = data?.subscription;
+
+  const openStripePortal = async () => {
+    setPortalLoading(true);
+    setPortalError('');
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok || !body.url) throw new Error(body.error || 'Falha ao abrir portal');
+      window.location.href = body.url;
+    } catch (err: any) {
+      setPortalError(err.message);
+      setPortalLoading(false);
+    }
+  };
 
   const handleSubscribe = async (planId: string) => {
     setSubscribeError('');
@@ -258,6 +278,86 @@ function BillingTab() {
     );
   }
 
+  // Stripe-managed tenants: redirect to Customer Portal for any change
+  // (update card, view invoices, cancel). No PCI exposure on our side.
+  if (isStripe) {
+    const renewDate = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+    const trialEnd = sub?.trial_end ? new Date(sub.trial_end) : null;
+    const inTrial = trialEnd && trialEnd.getTime() > Date.now();
+    return (
+      <div className="space-y-6">
+        <div className="glass-card rounded-xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-acai" />
+                Sua assinatura
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Gerenciada pelo Stripe — atualizar cartão, baixar faturas ou cancelar é direto pelo portal deles.</p>
+            </div>
+            {sub?.status && (
+              <Badge className={cn(
+                'text-[11px] capitalize',
+                sub.status === 'active' || sub.status === 'trialing'
+                  ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
+                  : 'bg-amber-500/15 text-amber-600 border-amber-500/20',
+              )}>
+                {sub.status === 'trialing' ? 'em teste grátis' : sub.status}
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Plano</p>
+              <p className="text-base font-semibold capitalize mt-0.5">{currentPlan}</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Cartão</p>
+              <p className="text-base font-semibold mt-0.5">
+                {card ? `${(card.brand || '').toUpperCase()} •••• ${card.last4}` : '—'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground tracking-wider">
+                {inTrial ? 'Trial até' : 'Próxima cobrança'}
+              </p>
+              <p className="text-base font-semibold mt-0.5">
+                {inTrial && trialEnd
+                  ? trialEnd.toLocaleDateString('pt-BR')
+                  : renewDate
+                    ? renewDate.toLocaleDateString('pt-BR')
+                    : '—'}
+              </p>
+            </div>
+          </div>
+
+          {sub?.cancel_at_period_end && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700">
+              Cancelamento agendado — sua assinatura termina em {renewDate?.toLocaleDateString('pt-BR')}.
+            </div>
+          )}
+
+          <Button
+            onClick={openStripePortal}
+            disabled={portalLoading}
+            className="bg-acai hover:bg-acai/80 text-white"
+          >
+            {portalLoading ? 'Abrindo…' : (
+              <>
+                <ExternalLink className="h-4 w-4 mr-1.5" />
+                Gerenciar assinatura
+              </>
+            )}
+          </Button>
+
+          {portalError && <p className="text-sm text-red-500">{portalError}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy Asaas tenants — keep existing plan picker
   return (
     <div className="space-y-6">
       {/* Current card */}

@@ -33,6 +33,7 @@ services:
       DASHBOARD_PASS: ${DASHBOARD_PASS}
       JWT_SECRET: ${JWT_SECRET}
       PROVISION_SHARED_SECRET: ${PROVISION_SHARED_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       # PostgreSQL (internal Docker network)
       DATABASE_URL: postgresql://acaidojapa:${DB_PASSWORD}@postgres:5432/acaidojapa
       # PDV Legal / Tablet Cloud
