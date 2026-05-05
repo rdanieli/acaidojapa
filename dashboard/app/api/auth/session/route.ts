@@ -31,14 +31,19 @@ export async function GET() {
         }
       : null;
 
-    // Fetch user's allowed modules and name
+    // Fetch user's allowed modules, name, and temp-password flag
     let allowedModules: string[] | null = null;
     let name: string | null = null;
+    let passwordIsTemporary = false;
     if (session.userId > 0) {
-      const [user] = await db.select({ allowedModules: users.allowedModules, name: users.name })
-        .from(users).where(eq(users.id, session.userId)).limit(1);
+      const [user] = await db.select({
+        allowedModules: users.allowedModules,
+        name: users.name,
+        passwordIsTemporary: users.passwordIsTemporary,
+      }).from(users).where(eq(users.id, session.userId)).limit(1);
       allowedModules = (user?.allowedModules as string[] | null) || null;
       name = user?.name || null;
+      passwordIsTemporary = user?.passwordIsTemporary ?? false;
     }
 
     return NextResponse.json({
@@ -49,6 +54,7 @@ export async function GET() {
         email: session.email,
         name,
         allowedModules,
+        passwordIsTemporary,
         tenant: tenant || null,
       },
     });

@@ -9,6 +9,7 @@ export interface Session {
   email: string;
   name: string | null;
   allowedModules: string[] | null;
+  passwordIsTemporary?: boolean;
   tenant: {
     name: string;
     slug: string;

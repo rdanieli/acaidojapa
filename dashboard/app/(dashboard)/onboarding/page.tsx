@@ -138,8 +138,46 @@ export default function OnboardingPage() {
   // Tenants that signed up via Stripe Checkout already have a subscription
   // and a card on file at Stripe — skip the Asaas tokenization step entirely.
   const billingHandledByStripe = !!sessionData?.session?.tenant?.hasStripeSubscription;
+  // Stripe-provisioned users start with a random password they don't know.
+  // We gate onboarding behind a "set your password" form so they can log in
+  // again after the magic-link cookie expires.
+  const needsPasswordSetup = !!sessionData?.session?.passwordIsTemporary;
+  const [passwordDone, setPasswordDone] = useState(false);
+  const [pwForm, setPwForm] = useState({ password: '', confirm: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const submitPassword = async () => {
+    setPwError('');
+    if (pwForm.password.length < 8) {
+      setPwError('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (pwForm.password !== pwForm.confirm) {
+      setPwError('As senhas não conferem.');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwForm.password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Falha ao salvar senha');
+      }
+      await qc.invalidateQueries({ queryKey: ['session'] });
+      setPasswordDone(true);
+    } catch (err: any) {
+      setPwError(err.message);
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   // Step 0: Business type
   const [businessType, setBusinessType] = useState<string | null>(null);
@@ -285,6 +323,60 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+  if (needsPasswordSetup && !passwordDone) {
+    return (
+      <div className="max-w-md mx-auto space-y-6 animate-fade-in">
+        <div className="text-center space-y-2">
+          <div className="flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-acai shadow-lg">
+              <Store className="h-7 w-7 text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold">Defina sua senha</h1>
+          <p className="text-sm text-muted-foreground">
+            Você entrou pelo link do email. Crie uma senha pra entrar de novo depois sem precisar do link.
+          </p>
+        </div>
+
+        <div className="glass-card rounded-xl p-6 space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Senha (mínimo 8 caracteres)</label>
+            <Input
+              type="password"
+              value={pwForm.password}
+              onChange={(e) => setPwForm({ ...pwForm, password: e.target.value })}
+              placeholder="Sua senha"
+              className="mt-1"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Confirme a senha</label>
+            <Input
+              type="password"
+              value={pwForm.confirm}
+              onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+              placeholder="Digite de novo"
+              className="mt-1"
+              onKeyDown={(e) => e.key === 'Enter' && submitPassword()}
+            />
+          </div>
+          {pwError && <p className="text-sm text-red-400">{pwError}</p>}
+          <Button
+            onClick={submitPassword}
+            disabled={pwLoading || !pwForm.password || !pwForm.confirm}
+            className="w-full bg-acai hover:bg-acai/80 text-white"
+          >
+            {pwLoading ? 'Salvando…' : 'Salvar senha e continuar'}
+          </Button>
+          <p className="text-[11px] text-muted-foreground/60 text-center">
+            Você usa essa senha pra entrar em <strong>app.japagestao.com.br/login</strong> com seu email.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">

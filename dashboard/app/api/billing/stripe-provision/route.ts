@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
         email,
         name: businessName,
         passwordHash,
+        passwordIsTemporary: true,
         role: 'owner',
       })
       .returning();

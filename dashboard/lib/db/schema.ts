@@ -29,6 +29,9 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   passwordHash: text('password_hash').notNull(),
+  // True when the user was provisioned via Stripe webhook with a random
+  // password — they must set their own before completing onboarding.
+  passwordIsTemporary: boolean('password_is_temporary').notNull().default(false),
   role: text('role').notNull().default('employee'), // 'owner' | 'manager' | 'employee'
   allowedModules: json('allowed_modules'), // string[] e.g. ['checklists','scanner'] — null = all for role
   phone: text('phone'),
