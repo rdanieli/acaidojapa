@@ -6,6 +6,7 @@ import {
   processedOrders,
   dailyStockRuns,
   soldProducts,
+  recipes,
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { syncOrdersForDate } from '@/lib/sync-orders';
@@ -149,7 +150,42 @@ export async function processDailySales(date: string, tenantId: number): Promise
               continue;
             }
 
-            // Get cup size in ml from the sold product
+            // --- Recipe-based deduction (for crepes, sucos, anything without sizeMl) ---
+            // When the item has no sizeMl, the cup-weight model below doesn't apply.
+            // Instead, deduct by ingredient list from `recipes`. Same source the
+            // financial dashboard uses to compute CMV — this keeps stock and CMV in sync.
+            if (parsed.sizeMl == null) {
+              const recipeRows = await db
+                .select({ productId: recipes.productId, quantityG: recipes.quantityG })
+                .from(recipes)
+                .where(and(
+                  eq(recipes.soldProductId, parsed.soldProductId),
+                  eq(recipes.tenantId, tenantId),
+                ));
+              if (recipeRows.length === 0) {
+                // Match found but no recipe configured — surface as unmatched so the
+                // user knows to cadastrar ficha técnica. Stock stays untouched.
+                unmatchedItems.push(`${item.name} → sem ficha técnica`);
+              } else {
+                for (const ing of recipeRows) {
+                  if (!ing.productId) continue;
+                  const perUnit = Number(ing.quantityG) || 0;
+                  if (perUnit <= 0) continue;
+                  const totalG = perUnit * item.quantity;
+                  await deductProductStock(
+                    ing.productId,
+                    totalG,
+                    'daily_processing',
+                    tenantId,
+                    run.id,
+                    'cron',
+                  );
+                }
+              }
+              continue; // Recipe model handles all deduction; skip cup/complement logic.
+            }
+
+            // --- Cup-weight model (açaí, sucos com tamanho) ---
             const sizeMl = parsed.sizeMl;
             const sizeTier = parsed.sizeTier;
             const cupWeightG = sizeMl ? (CUP_WEIGHTS[sizeMl] || sizeMl) : null;
