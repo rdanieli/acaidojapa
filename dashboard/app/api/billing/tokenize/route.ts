@@ -21,6 +21,17 @@ export async function POST(request: NextRequest) {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
     if (!tenant) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 404 });
 
+    // Defense: tenants that signed up via Stripe Checkout already have an active
+    // subscription with payment method on file at Stripe. They should never see
+    // this flow — block it explicitly so a stray request doesn't try to tokenize
+    // a card via Asaas (which isn't even configured in prod).
+    if (tenant.stripeSubscriptionId) {
+      return NextResponse.json(
+        { error: 'Cobrança gerenciada pelo Stripe — esse formulário não se aplica' },
+        { status: 400 },
+      );
+    }
+
     // Create Asaas customer if doesn't exist
     let customerId: string = tenant.asaasCustomerId || '';
     if (!customerId) {

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Store, ArrowRight, ArrowLeft, Check, Package, ShoppingBag, Scale, IceCreamCone, Beef, CakeSlice, Coffee, UtensilsCrossed, CreditCard } from 'lucide-react';
+import { useSession } from '@/hooks/use-session';
 
 // Business type presets
 const BUSINESS_TYPES = [
@@ -133,6 +134,10 @@ const BUSINESS_TYPES = [
 export default function OnboardingPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { data: sessionData } = useSession();
+  // Tenants that signed up via Stripe Checkout already have a subscription
+  // and a card on file at Stripe — skip the Asaas tokenization step entirely.
+  const billingHandledByStripe = !!sessionData?.session?.tenant?.hasStripeSubscription;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -231,8 +236,12 @@ export default function OnboardingPage() {
     }
   };
 
-  const totalSteps = preset?.hasGramages ? 5 : 4;
-  const cardStep = preset?.hasGramages ? 4 : 3;
+  // Step layout: business → ingredients → menu → [gramages] → [card] → confirm
+  // The card step is dropped entirely when billing is already covered by Stripe;
+  // gramages only show for açaí. We compute totalSteps to match what's actually rendered.
+  const baseStepsBeforeCard = preset?.hasGramages ? 4 : 3; // business + ingredients + menu (+ gramages)
+  const cardStep = billingHandledByStripe ? -1 : baseStepsBeforeCard; // -1 = no card step
+  const totalSteps = billingHandledByStripe ? baseStepsBeforeCard : baseStepsBeforeCard + 1;
   const confirmStep = totalSteps - 1;
 
   const handleFinish = async () => {

@@ -13,6 +13,8 @@ export interface Session {
     name: string;
     slug: string;
     onboardingCompleted: boolean;
+    billingStatus?: string;
+    hasStripeSubscription?: boolean;
   } | null;
 }
 

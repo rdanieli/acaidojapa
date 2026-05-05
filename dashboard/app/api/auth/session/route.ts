@@ -11,11 +11,25 @@ export async function GET() {
       return NextResponse.json({ session: null });
     }
 
-    const [tenant] = await db.select({
+    const [tenantRow] = await db.select({
       name: tenants.name,
       slug: tenants.slug,
       onboardingCompleted: tenants.onboardingCompleted,
+      stripeSubscriptionId: tenants.stripeSubscriptionId,
+      billingStatus: tenants.billingStatus,
     }).from(tenants).where(eq(tenants.id, session.tenantId)).limit(1);
+
+    const tenant = tenantRow
+      ? {
+          name: tenantRow.name,
+          slug: tenantRow.slug,
+          onboardingCompleted: tenantRow.onboardingCompleted,
+          billingStatus: tenantRow.billingStatus,
+          // True when the tenant signed up via the Stripe landing flow.
+          // Used by /onboarding to skip the Asaas card-tokenization step.
+          hasStripeSubscription: !!tenantRow.stripeSubscriptionId,
+        }
+      : null;
 
     // Fetch user's allowed modules and name
     let allowedModules: string[] | null = null;
