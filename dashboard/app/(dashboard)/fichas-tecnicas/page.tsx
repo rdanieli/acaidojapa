@@ -30,7 +30,7 @@ export default function FichasTecnicasPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { data: recipeData } = useRecipe(selectedId);
 
-  const [newForm, setNewForm] = useState({ name: '', sizeMl: '', category: 'acai', price: '' });
+  const [newForm, setNewForm] = useState({ name: '', sizeMl: '', category: '', price: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ name: '', sizeMl: '', category: '', price: '' });
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
@@ -38,6 +38,17 @@ export default function FichasTecnicasPage() {
 
   const soldProducts = spData?.soldProducts ?? [];
   const catalogProducts = catalogData?.products?.filter((p: any) => p.active) ?? [];
+
+  // Category suggestions: every distinct category already used by this tenant.
+  // The input is free-text — user can type anything new and it persists when
+  // the next product reads the dropdown.
+  const categoryOptions = Array.from(
+    new Set(
+      soldProducts
+        .map((sp: any) => (typeof sp.category === 'string' ? sp.category.trim() : ''))
+        .filter((c: string) => c.length > 0),
+    ),
+  ).sort() as string[];
 
   const openRecipe = (sp: any) => {
     setSelectedId(sp.id);
@@ -85,7 +96,7 @@ export default function FichasTecnicasPage() {
       category: newForm.category || undefined,
       price: newForm.price ? Number(newForm.price) : undefined,
     });
-    setNewForm({ name: '', sizeMl: '', category: 'acai', price: '' });
+    setNewForm({ name: '', sizeMl: '', category: '', price: '' });
   };
 
   // Calculate recipe cost — uses shared helper so this matches the Financeiro CMV exactly.
@@ -146,16 +157,18 @@ export default function FichasTecnicasPage() {
           className="h-8 w-20 bg-transparent border-border text-sm"
           type="number"
         />
-        <select
+        <Input
+          list="sp-category-options"
           value={newForm.category}
           onChange={(e) => setNewForm({ ...newForm, category: e.target.value })}
-          className="h-8 rounded-md bg-muted/50 border border-border px-2 text-xs text-muted-foreground"
-        >
-          <option value="acai">Açaí</option>
-          <option value="suco">Suco</option>
-          <option value="sorvete">Sorvete</option>
-          <option value="outros">Outros</option>
-        </select>
+          placeholder="categoria"
+          className="h-8 w-32 bg-transparent border-border text-sm"
+        />
+        <datalist id="sp-category-options">
+          {categoryOptions.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
         <Input
           placeholder="Preço R$"
           value={newForm.price}
