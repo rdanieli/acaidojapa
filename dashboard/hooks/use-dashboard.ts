@@ -142,10 +142,16 @@ export function useAddProduct() {
 export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/dashboard/products-catalog?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+    mutationFn: async ({ id, force }: { id: number; force?: boolean }) => {
+      const res = await fetch(`/api/dashboard/products-catalog?id=${id}${force ? '&force=1' : ''}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw Object.assign(new Error(data.error || 'Nao foi possivel excluir o produto'), {
+          status: res.status,
+          dependencies: data.dependencies as Record<string, number> | undefined,
+        });
+      }
+      return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products-catalog'] }),
   });

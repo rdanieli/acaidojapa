@@ -1,8 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { products, inventoryItems } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import {
+  products,
+  inventoryItems,
+  stockMovements,
+  recipes,
+  complementGramages,
+  consolidationItems,
+  wasteEntries,
+  stockAlerts,
+  pendingAdminCommands,
+} from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { getTenantScope } from '@/lib/db/tenant';
+
+type ProductScopedTable = PgTable & { productId: AnyPgColumn; tenantId: AnyPgColumn };
+
+const PRODUCT_DEPENDENTS: { key: string; table: ProductScopedTable }[] = [
+  { key: 'stockMovements', table: stockMovements },
+  { key: 'recipes', table: recipes },
+  { key: 'complementGramages', table: complementGramages },
+  { key: 'consolidationItems', table: consolidationItems },
+  { key: 'wasteEntries', table: wasteEntries },
+  { key: 'stockAlerts', table: stockAlerts },
+  { key: 'pendingAdminCommands', table: pendingAdminCommands },
+];
+
+async function countProductDependencies(productId: number, tenantId: number) {
+  const counts: Record<string, number> = {};
+
+  for (const dependent of [...PRODUCT_DEPENDENTS, { key: 'inventoryItems', table: inventoryItems as ProductScopedTable }]) {
+    const [row] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(dependent.table)
+      .where(and(eq(dependent.table.productId, productId), eq(dependent.table.tenantId, tenantId)));
+    if (row.total > 0) counts[dependent.key] = row.total;
+  }
+
+  return counts;
+}
 
 export async function GET() {
   try {
@@ -110,9 +147,41 @@ export async function DELETE(request: NextRequest) {
     const { tenantId } = await getTenantScope();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const force = searchParams.get('force') === '1';
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-    await db.delete(products).where(and(eq(products.id, Number(id)), eq(products.tenantId, tenantId)));
-    return NextResponse.json({ ok: true });
+
+    const productId = Number(id);
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
+    if (!product) return NextResponse.json({ error: 'Produto nao encontrado' }, { status: 404 });
+
+    const dependencies = await countProductDependencies(productId, tenantId);
+
+    if (Object.keys(dependencies).length > 0 && !force) {
+      return NextResponse.json(
+        { error: 'Produto tem vinculos', productName: product.name, dependencies },
+        { status: 409 }
+      );
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(inventoryItems)
+        .set({ productId: null })
+        .where(and(eq(inventoryItems.productId, productId), eq(inventoryItems.tenantId, tenantId)));
+
+      for (const dependent of PRODUCT_DEPENDENTS) {
+        await tx
+          .delete(dependent.table)
+          .where(and(eq(dependent.table.productId, productId), eq(dependent.table.tenantId, tenantId)));
+      }
+
+      await tx.delete(products).where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
+    });
+
+    return NextResponse.json({ ok: true, dependencies });
   } catch (error) {
     console.error('[Products API] Error:', error);
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
