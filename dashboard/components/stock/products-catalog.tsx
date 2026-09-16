@@ -89,6 +89,23 @@ const CATEGORIES = [
 
 const UNITS = ['un', 'kg', 'L', 'cx', 'pct', 'sc', 'g', 'ml'];
 
+const DEPENDENCY_LABELS: Record<string, [string, string]> = {
+  stockMovements: ['movimentação de estoque', 'movimentações de estoque'],
+  recipes: ['item de ficha técnica', 'itens de ficha técnica'],
+  complementGramages: ['gramagem de complemento', 'gramagens de complemento'],
+  consolidationItems: ['item de consolidação', 'itens de consolidação'],
+  wasteEntries: ['registro de desperdício', 'registros de desperdício'],
+  stockAlerts: ['alerta de estoque', 'alertas de estoque'],
+  pendingAdminCommands: ['comando pendente no WhatsApp', 'comandos pendentes no WhatsApp'],
+  inventoryItems: ['item de nota de entrada', 'itens de nota de entrada'],
+};
+
+function dependencyText(key: string, count: number) {
+  const labels = DEPENDENCY_LABELS[key];
+  if (!labels) return `${count} ${key}`;
+  return `${count} ${count === 1 ? labels[0] : labels[1]}`;
+}
+
 function stockColor(current: number, min: number | null) {
   if (current <= 0) return 'text-red-400';
   if (min != null && current <= min) return 'text-amber-400';
@@ -119,6 +136,9 @@ export function ProductsCatalog() {
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
   const [expandedGramages, setExpandedGramages] = useState<number | null>(null);
   const [chartProductId, setChartProductId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteDeps, setDeleteDeps] = useState<Record<string, number> | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const products = data?.products ?? [];
   const filtered = products.filter((p: any) => {
@@ -161,12 +181,35 @@ export function ProductsCatalog() {
     setNewUnit('un');
   };
 
+  const closeDeleteDialog = () => {
+    setDeleteTarget(null);
+    setDeleteDeps(null);
+    setDeleteError(null);
+  };
+
+  const handleDelete = (product: any, force = false) => {
+    deleteProduct.mutate(
+      { id: product.id, force },
+      {
+        onSuccess: closeDeleteDialog,
+        onError: (err: any) => {
+          setDeleteTarget(product);
+          setDeleteDeps(err?.status === 409 ? err.dependencies ?? {} : null);
+          setDeleteError(err?.status === 409 ? null : err?.message ?? 'Erro ao excluir produto');
+        },
+      }
+    );
+  };
+
   const handleMerge = () => {
     if (!mergeSource || !mergeTargetId) return;
     mergeProducts.mutate({ sourceId: mergeSource.id, targetId: Number(mergeTargetId) });
     setMergeSource(null);
     setMergeTargetId('');
   };
+
+  const deleteDepEntries = Object.entries(deleteDeps ?? {}).filter(([key]) => key !== 'inventoryItems');
+  const deleteUnlinkCount = deleteDeps?.inventoryItems ?? 0;
 
   if (isLoading) {
     return (
@@ -395,7 +438,7 @@ export function ProductsCatalog() {
                             <button onClick={() => { setMergeSource(p); setMergeTargetId(''); }} className="p-1 rounded-md hover:bg-acai/15 text-muted-foreground/40 hover:text-acai transition-colors">
                               <Merge className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteProduct.mutate(p.id)} className="p-1 rounded-md hover:bg-destructive/15 text-muted-foreground/40 hover:text-destructive transition-colors">
+                            <button onClick={() => handleDelete(p)} disabled={deleteProduct.isPending} className="p-1 rounded-md hover:bg-destructive/15 text-muted-foreground/40 hover:text-destructive transition-colors disabled:opacity-40">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </>
@@ -463,6 +506,55 @@ export function ProductsCatalog() {
             >
               Confirmar Merge
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && closeDeleteDialog()}>
+        <DialogContent className="bg-background border-border">
+          <DialogHeader>
+            <DialogTitle>Excluir &ldquo;{deleteTarget?.name}&rdquo;?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {deleteError ? (
+              <p className="text-sm text-destructive">{deleteError}</p>
+            ) : (
+              <>
+                {deleteDepEntries.length > 0 && (
+                  <>
+                    <p className="text-sm text-muted-foreground">Este produto tem vínculos. Vai apagar junto:</p>
+                    <ul className="space-y-1">
+                      {deleteDepEntries.map(([key, count]) => (
+                        <li key={key} className="flex items-center gap-2 text-sm">
+                          <span className="h-1 w-1 rounded-full bg-destructive/60" />
+                          {dependencyText(key, count)}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {deleteUnlinkCount > 0 && (
+                  <p className="text-xs text-muted-foreground/60">
+                    {dependencyText('inventoryItems', deleteUnlinkCount)} continuam na nota, só perdem o vínculo com o produto.
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground/60">Essa ação não tem volta.</p>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDeleteDialog}>Cancelar</Button>
+            {!deleteError && (
+              <Button
+                onClick={() => handleDelete(deleteTarget, true)}
+                disabled={deleteProduct.isPending}
+                className="bg-destructive hover:bg-destructive/80 text-white"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Excluir mesmo assim
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
