@@ -137,7 +137,9 @@ export default function OnboardingPage() {
   const { data: sessionData } = useSession();
   // Tenants that signed up via Stripe Checkout already have a subscription
   // and a card on file at Stripe — skip the Asaas tokenization step entirely.
-  const billingHandledByStripe = !!sessionData?.session?.tenant?.hasStripeSubscription;
+  const tenantBilling = sessionData?.session?.tenant;
+  const billingAlreadySettled =
+    !!tenantBilling?.hasStripeSubscription || tenantBilling?.billingStatus === 'active';
   // Note: password setup is now handled by /define-senha standalone — the
   // dashboard layout redirects users with passwordIsTemporary=true there
   // before this page ever renders for them.
@@ -240,11 +242,12 @@ export default function OnboardingPage() {
   };
 
   // Step layout: business → ingredients → menu → [gramages] → [card] → confirm
-  // The card step is dropped entirely when billing is already covered by Stripe;
-  // gramages only show for açaí. We compute totalSteps to match what's actually rendered.
+  // The card step is dropped entirely when billing is already settled (Stripe
+  // subscription or a manually activated tenant); gramages only show for açaí.
+  // We compute totalSteps to match what's actually rendered.
   const baseStepsBeforeCard = preset?.hasGramages ? 4 : 3; // business + ingredients + menu (+ gramages)
-  const cardStep = billingHandledByStripe ? -1 : baseStepsBeforeCard; // -1 = no card step
-  const totalSteps = billingHandledByStripe ? baseStepsBeforeCard : baseStepsBeforeCard + 1;
+  const cardStep = billingAlreadySettled ? -1 : baseStepsBeforeCard; // -1 = no card step
+  const totalSteps = billingAlreadySettled ? baseStepsBeforeCard : baseStepsBeforeCard + 1;
   const confirmStep = totalSteps - 1;
 
   const handleFinish = async () => {
