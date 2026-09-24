@@ -138,8 +138,11 @@ export default function OnboardingPage() {
   // Tenants that signed up via Stripe Checkout already have a subscription
   // and a card on file at Stripe — skip the Asaas tokenization step entirely.
   const tenantBilling = sessionData?.session?.tenant;
+  const cardCaptureEnabled = sessionData?.session?.cardCaptureEnabled !== false;
   const billingAlreadySettled =
-    !!tenantBilling?.hasStripeSubscription || tenantBilling?.billingStatus === 'active';
+    !cardCaptureEnabled ||
+    !!tenantBilling?.hasStripeSubscription ||
+    tenantBilling?.billingStatus === 'active';
   // Note: password setup is now handled by /define-senha standalone — the
   // dashboard layout redirects users with passwordIsTemporary=true there
   // before this page ever renders for them.

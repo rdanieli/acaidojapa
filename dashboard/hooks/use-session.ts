@@ -10,6 +10,7 @@ export interface Session {
   name: string | null;
   allowedModules: string[] | null;
   passwordIsTemporary?: boolean;
+  cardCaptureEnabled?: boolean;
   tenant: {
     name: string;
     slug: string;
