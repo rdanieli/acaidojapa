@@ -15,6 +15,7 @@ import { db } from '@/lib/db';
 import { products, pendingAdminCommands } from '@/lib/db/schema';
 import { eq, and, ilike } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
+import { GROQ_CHAT_MODEL } from './groq-models';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -91,7 +92,7 @@ async function parseCommand(text: string, productNames: string[], userHistory: s
       : '';
 
     const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: GROQ_CHAT_MODEL,
       messages: [
         {
           role: 'system',

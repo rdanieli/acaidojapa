@@ -4,6 +4,7 @@ import { products, stockAlerts, stockMovements, orders, orderItems } from '@/lib
 import { eq, gte, and, sql, desc, ilike } from 'drizzle-orm';
 import { sendMessage } from './evolution';
 import { addBotResponseToHistory } from './admin-commands';
+import { GROQ_CHAT_MODEL } from './groq-models';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -17,7 +18,7 @@ interface QueryPlan {
 
 async function planQueries(question: string): Promise<QueryPlan> {
   const completion = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: GROQ_CHAT_MODEL,
     messages: [
       {
         role: 'system',
@@ -266,7 +267,7 @@ async function generateResponse(question: string, data: Record<string, string>, 
   if (data.sales_by_item) sections.push(`VENDAS POR ITEM (últimos ${days} dias):\n${data.sales_by_item}`);
 
   const completion = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: GROQ_CHAT_MODEL,
     messages: [
       {
         role: 'system',
