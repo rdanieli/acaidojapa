@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, numeric, timestamp, boolean, date, json } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, numeric, timestamp, boolean, date, json, uniqueIndex } from 'drizzle-orm/pg-core';
 
 /** Multi-tenant: each business is a tenant */
 export const tenants = pgTable('tenants', {
@@ -55,18 +55,20 @@ export const inventoryEntries = pgTable('inventory_entries', {
 export const allowedSenders = pgTable('allowed_senders', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').notNull().references(() => tenants.id),
-  phone: text('phone').notNull().unique(), // e.g. '5583993698623'
+  phone: text('phone').notNull(), // e.g. '5583993698623'
   name: text('name').notNull(),
   lid: text('lid'), // WhatsApp LID (auto-mapped on verification)
   verificationStatus: text('verification_status').notNull().default('pending'), // 'pending' | 'verified'
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex('allowed_senders_tenant_id_phone_unique').on(table.tenantId, table.phone),
+]);
 
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').notNull().references(() => tenants.id),
-  name: text('name').notNull().unique(), // canonical name e.g. "Polpa de Açaí 10kg"
+  name: text('name').notNull(), // canonical name e.g. "Polpa de Açaí 10kg"
   aliases: text('aliases'), // comma-separated alternative names for AI matching
   defaultUnit: text('default_unit').notNull().default('un'),
   category: text('category'), // 'insumo' | 'embalagem' | 'complemento' | 'descartavel'
@@ -77,7 +79,9 @@ export const products = pgTable('products', {
   barcode: text('barcode'), // EAN-13 or custom barcode
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex('products_tenant_id_name_unique').on(table.tenantId, table.name),
+]);
 
 export const inventoryItems = pgTable('inventory_items', {
   id: serial('id').primaryKey(),
@@ -175,7 +179,7 @@ export const consolidationItems = pgTable('consolidation_items', {
 export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').notNull().references(() => tenants.id),
-  externalId: text('external_id').notNull().unique(), // "pdv-123" ou "cw-456"
+  externalId: text('external_id').notNull(), // "pdv-123" ou "cw-456"
   channel: text('channel').notNull(), // 'pdv' | 'online'
   displayId: text('display_id'),
   datetime: timestamp('datetime', { withTimezone: true }).notNull(),
@@ -187,7 +191,9 @@ export const orders = pgTable('orders', {
   paymentsJson: json('payments_json'), // [{method, amount}]
   rawData: json('raw_data'), // full original API response
   importedAt: timestamp('imported_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex('orders_tenant_id_external_id_unique').on(table.tenantId, table.externalId),
+]);
 
 /** Items within imported orders */
 export const orderItems = pgTable('order_items', {
@@ -242,11 +248,13 @@ export const dailyStockRuns = pgTable('daily_stock_runs', {
 export const productNameAliases = pgTable('product_name_aliases', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').notNull().references(() => tenants.id),
-  alias: text('alias').notNull().unique(), // nome normalizado
+  alias: text('alias').notNull(), // nome normalizado
   soldProductId: integer('sold_product_id').notNull().references(() => soldProducts.id),
   source: text('source').notNull().default('auto'), // 'pdv' | 'online' | 'auto' | 'manual'
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex('product_name_aliases_tenant_id_alias_unique').on(table.tenantId, table.alias),
+]);
 
 /** Waste/loss tracking */
 export const wasteEntries = pgTable('waste_entries', {

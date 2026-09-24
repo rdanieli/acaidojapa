@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       .insert(allowedSenders)
       .values({ tenantId, phone: normalized, name, verificationStatus: 'pending' })
       .onConflictDoUpdate({
-        target: allowedSenders.phone,
+        target: [allowedSenders.tenantId, allowedSenders.phone],
         set: { name, active: true, verificationStatus: 'pending', lid: null },
       })
       .returning();

@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         const [newProduct] = await db
           .insert(products)
           .values({ tenantId, name: item.product_name, defaultUnit: item.unit })
-          .onConflictDoUpdate({ target: products.name, set: { active: true } })
+          .onConflictDoUpdate({ target: [products.tenantId, products.name], set: { active: true } })
           .returning();
         item.matched_product_id = newProduct.id;
         console.log(`[Webhook] New product created: "${item.product_name}" (ID ${newProduct.id})`);
