@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements, tenants } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import {
   transcribeAudio,
   extractInventoryFromText,
@@ -9,6 +9,7 @@ import {
 } from '@/lib/whatsapp/ai-processor';
 import { downloadMedia, sendMessage } from '@/lib/whatsapp/evolution';
 import { handleConfirmation } from '@/lib/whatsapp/confirmation';
+import { phoneVariants } from '@/lib/whatsapp/phone';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const VERIFY_WORDS = ['verificar', 'verify', 'ativar'];
@@ -40,28 +41,36 @@ function isFromMe(data: any): boolean {
 }
 
 /**
- * Handle verification: when someone replies "VERIFICAR", map their LID to their phone.
+ * Handle verification: when someone replies "VERIFICAR", activate their access.
+ * Matches by phone when the message carries one, falling back to the tenant's
+ * single pending sender when it arrives as a LID.
  * Returns true if the message was a verification attempt.
  */
-async function handleVerification(lid: string, text: string): Promise<boolean> {
+async function handleVerification(
+  senderId: string,
+  isLid: boolean,
+  text: string,
+  scopeTenantId: number | null
+): Promise<boolean> {
   const normalized = text.trim().toLowerCase();
   if (!VERIFY_WORDS.some((w) => normalized === w || normalized.startsWith(w))) {
     return false;
   }
 
-  // Find any pending sender without a LID mapped
-  const pendingSenders = await db
-    .select()
-    .from(allowedSenders)
-    .where(eq(allowedSenders.verificationStatus, 'pending'));
-
+  const conditions = [eq(allowedSenders.verificationStatus, 'pending')];
+  if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
+  const pendingSenders = await db.select().from(allowedSenders).where(and(...conditions));
   if (pendingSenders.length === 0) return false;
 
-  const target = pendingSenders[0];
+  const variants = phoneVariants(senderId);
+  const target = isLid
+    ? pendingSenders[0]
+    : pendingSenders.find((s) => phoneVariants(s.phone).some((v) => variants.includes(v)));
+  if (!target) return false;
 
   await db
     .update(allowedSenders)
-    .set({ lid, verificationStatus: 'verified' })
+    .set({ verificationStatus: 'verified', ...(isLid ? { lid: senderId } : {}) })
     .where(eq(allowedSenders.id, target.id));
 
   await sendMessage(
@@ -70,7 +79,7 @@ async function handleVerification(lid: string, text: string): Promise<boolean> {
     target.tenantId
   );
 
-  console.log(`[Webhook] Verified sender: ${target.name} (${target.phone}) → LID ${lid}`);
+  console.log(`[Webhook] Verified sender: ${target.name} (${target.phone}) via ${isLid ? 'LID' : 'phone'} ${senderId}`);
   return true;
 }
 
@@ -94,7 +103,7 @@ async function lookupSender(phone: string, isLid: boolean, scopeTenantId?: numbe
     return null;
   }
 
-  const conditions = [eq(allowedSenders.phone, phone)];
+  const conditions = [inArray(allowedSenders.phone, phoneVariants(phone))];
   if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
   const [byPhone] = await db
     .select()
@@ -135,8 +144,8 @@ export async function POST(request: NextRequest) {
     console.log('[Webhook] Phone:', phone, 'isLid:', isLid, 'pushName:', pushName);
 
     // 1. Check for verification reply (before sender lookup, since pending senders aren't verified yet)
-    if (isLid && textContent) {
-      const verified = await handleVerification(phone, textContent);
+    if (textContent) {
+      const verified = await handleVerification(phone, isLid, textContent, instanceTenantId);
       if (verified) return NextResponse.json({ ok: true });
     }
 
