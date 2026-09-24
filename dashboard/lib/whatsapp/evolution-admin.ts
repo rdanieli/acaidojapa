@@ -27,8 +27,7 @@ export { instanceName };
  * Create a new Evolution API instance for a tenant.
  * Idempotent — returns existing instance if already created.
  */
-export async function createInstance(tenantSlug: string) {
-  const name = instanceName(tenantSlug);
+export async function createInstance(name: string) {
   const res = await fetch(`${ADMIN_URL()}/instance/create`, {
     method: 'POST',
     headers: adminHeaders(),
@@ -58,8 +57,7 @@ export async function createInstance(tenantSlug: string) {
  * Configure webhook for a tenant's instance.
  * Webhook URL includes instanceName so we can resolve the tenant on incoming messages.
  */
-export async function configureWebhook(tenantSlug: string, baseUrl: string) {
-  const name = instanceName(tenantSlug);
+export async function configureWebhook(name: string, baseUrl: string) {
   const webhookUrl = `${baseUrl}/api/webhook/whatsapp?instanceName=${name}`;
 
   const res = await fetch(`${ADMIN_URL()}/webhook/set/${name}`, {
@@ -84,40 +82,7 @@ export async function configureWebhook(tenantSlug: string, baseUrl: string) {
   console.log(`[EvolutionAdmin] Webhook configured for ${name}: ${webhookUrl}`);
 }
 
-/**
- * Get instance status by exact name (for existing instances like 'acaidojapa')
- */
-export async function getInstanceStatusByName(name: string) {
-  const res = await fetch(`${ADMIN_URL()}/instance/fetchInstances`, {
-    method: 'GET',
-    headers: adminHeaders(),
-  });
-
-  if (!res.ok) return null;
-
-  const instances = await res.json();
-  const list = Array.isArray(instances) ? instances : instances?.instances || [];
-  const instance = list.find(
-    (i: any) => i.name === name || i.instance?.instanceName === name || i.instanceName === name
-  );
-
-  if (!instance) return null;
-
-  return {
-    instanceName: name,
-    status: instance.connectionStatus || instance.instance?.connectionStatus || 'unknown',
-    ownerJid: instance.ownerJid || instance.instance?.ownerJid || null,
-    profileName: instance.profileName || instance.instance?.profileName || null,
-    profilePicUrl: instance.profilePicUrl || instance.instance?.profilePicUrl || null,
-  };
-}
-
-/**
- * Get instance status (connected, disconnected, etc.)
- */
-export async function getInstanceStatus(tenantSlug: string) {
-  const name = instanceName(tenantSlug);
-
+export async function getInstanceStatus(name: string) {
   const res = await fetch(`${ADMIN_URL()}/instance/fetchInstances`, {
     method: 'GET',
     headers: adminHeaders(),
@@ -145,9 +110,7 @@ export async function getInstanceStatus(tenantSlug: string) {
 /**
  * Connect instance and get QR code for scanning.
  */
-export async function connectInstance(tenantSlug: string) {
-  const name = instanceName(tenantSlug);
-
+export async function connectInstance(name: string) {
   const res = await fetch(`${ADMIN_URL()}/instance/connect/${name}`, {
     method: 'GET',
     headers: adminHeaders(),
@@ -169,9 +132,7 @@ export async function connectInstance(tenantSlug: string) {
 /**
  * Disconnect (logout) a tenant's WhatsApp session.
  */
-export async function disconnectInstance(tenantSlug: string) {
-  const name = instanceName(tenantSlug);
-
+export async function disconnectInstance(name: string) {
   const res = await fetch(`${ADMIN_URL()}/instance/logout/${name}`, {
     method: 'DELETE',
     headers: adminHeaders(),
@@ -186,9 +147,7 @@ export async function disconnectInstance(tenantSlug: string) {
 /**
  * Delete an instance entirely (cleanup).
  */
-export async function deleteInstance(tenantSlug: string) {
-  const name = instanceName(tenantSlug);
-
+export async function deleteInstance(name: string) {
   const res = await fetch(`${ADMIN_URL()}/instance/delete/${name}`, {
     method: 'DELETE',
     headers: adminHeaders(),

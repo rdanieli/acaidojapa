@@ -7,24 +7,19 @@ import {
   createInstance,
   configureWebhook,
   getInstanceStatus,
-  getInstanceStatusByName,
   connectInstance,
   disconnectInstance,
   instanceName,
 } from '@/lib/whatsapp/evolution-admin';
 
-/** Get the tenant's slug for instance naming */
-async function getTenantSlug(tenantId: number): Promise<string> {
-  const [tenant] = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
-  if (!tenant) throw new Error('Tenant not found');
-  return tenant.slug;
-}
-
-/** Get existing instance name from tenantSettings, or null if not set */
-async function getExistingInstanceName(tenantId: number): Promise<string | null> {
+/** Instance name already in use by this tenant, or the default derived from its slug */
+async function resolveInstanceName(tenantId: number): Promise<string> {
   const [settings] = await db.select({ evolutionInstanceName: tenantSettings.evolutionInstanceName })
     .from(tenantSettings).where(eq(tenantSettings.tenantId, tenantId)).limit(1);
-  return settings?.evolutionInstanceName || null;
+  if (settings?.evolutionInstanceName) return settings.evolutionInstanceName;
+  const [tenant] = await db.select({ slug: tenants.slug }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  if (!tenant) throw new Error('Tenant not found');
+  return instanceName(tenant.slug);
 }
 
 /** Derive app base URL for webhook configuration */
@@ -66,7 +61,6 @@ async function saveEvolutionConfig(tenantId: number, instName: string) {
 export async function GET(request: NextRequest) {
   try {
     const { tenantId } = await getTenantScope();
-    const slug = await getTenantSlug(tenantId);
 
     // Check if Evolution API is configured at all
     if (!process.env.EVOLUTION_API_URL) {
@@ -76,12 +70,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Use existing instance name from settings (e.g. 'acaidojapa') or default to tongo-{slug}
-    const existingName = await getExistingInstanceName(tenantId);
-    const instSlug = existingName ? existingName.replace('tongo-', '') : slug;
-    const status = existingName
-      ? await getInstanceStatusByName(existingName)
-      : await getInstanceStatus(slug);
+    const instName = await resolveInstanceName(tenantId);
+    const status = await getInstanceStatus(instName);
 
     if (!status) {
       return NextResponse.json({ status: 'not_found', message: 'Instância não criada ainda' });
@@ -104,7 +94,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { tenantId } = await getTenantScope();
-    const slug = await getTenantSlug(tenantId);
     const { action } = await request.json();
 
     if (!process.env.EVOLUTION_API_URL) {
@@ -112,20 +101,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'connect') {
-      const instName = instanceName(slug);
+      const instName = await resolveInstanceName(tenantId);
 
       // 1. Create instance (idempotent)
-      await createInstance(slug);
+      await createInstance(instName);
 
       // 2. Configure webhook with tenant identification
       const baseUrl = getBaseUrl(request);
-      await configureWebhook(slug, baseUrl);
+      await configureWebhook(instName, baseUrl);
 
       // 3. Save config to tenantSettings so evolution.ts can send messages
       await saveEvolutionConfig(tenantId, instName);
 
       // 4. Get QR code
-      const qr = await connectInstance(slug);
+      const qr = await connectInstance(instName);
 
       if (qr.base64) {
         return NextResponse.json({ qr: qr.base64, count: qr.count });
@@ -138,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'disconnect') {
-      await disconnectInstance(slug);
+      await disconnectInstance(await resolveInstanceName(tenantId));
       return NextResponse.json({ ok: true });
     }
 
