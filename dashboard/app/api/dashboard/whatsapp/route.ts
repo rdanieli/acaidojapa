@@ -130,7 +130,11 @@ export async function POST(request: NextRequest) {
       if (qr.base64) {
         return NextResponse.json({ qr: qr.base64, count: qr.count });
       }
-      return NextResponse.json({ qr: null, count: qr.count || 0, message: 'QR não pronto, tente novamente' });
+      return NextResponse.json({
+        qr: null,
+        count: qr.count || 0,
+        message: 'O WhatsApp não devolveu o QR code. Tente de novo em alguns segundos.',
+      });
     }
 
     if (action === 'disconnect') {
@@ -139,8 +143,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[WhatsApp API] Error:', error);
-    return NextResponse.json({ error: error.message || 'Failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Não foi possível falar com o servidor do WhatsApp. Tente de novo em alguns minutos.' },
+      { status: 500 }
+    );
   }
 }

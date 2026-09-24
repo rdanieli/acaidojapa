@@ -31,6 +31,7 @@ export function WhatsAppConnection() {
   const { data, isLoading } = useWhatsAppStatus();
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const connectMutation = useMutation({
     mutationFn: async () => {
@@ -39,15 +40,20 @@ export function WhatsAppConnection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'connect' }),
       });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Nao foi possivel falar com o servidor do WhatsApp');
+      return data;
     },
     onSuccess: (data) => {
       if (data.qr) {
+        setFeedback(null);
         setQrCode(data.qr);
         setPolling(true);
+        return;
       }
+      setFeedback(data.message || 'O QR nao ficou pronto. Tente de novo em alguns segundos.');
     },
+    onError: (err: Error) => setFeedback(err.message),
   });
 
   const disconnectMutation = useMutation({
@@ -57,13 +63,16 @@ export function WhatsAppConnection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'disconnect' }),
       });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Nao foi possivel desconectar');
+      return data;
     },
     onSuccess: () => {
+      setFeedback(null);
       setQrCode(null);
       qc.invalidateQueries({ queryKey: ['whatsapp-status'] });
     },
+    onError: (err: Error) => setFeedback(err.message),
   });
 
   // Poll for QR refresh and connection status while scanning
@@ -74,9 +83,20 @@ export function WhatsAppConnection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'connect' }),
       });
-      const data = await res.json();
-      if (data.qr) setQrCode(data.qr);
-    } catch {}
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFeedback(data.error || 'Nao foi possivel falar com o servidor do WhatsApp');
+        return;
+      }
+      if (data.qr) {
+        setFeedback(null);
+        setQrCode(data.qr);
+        return;
+      }
+      setFeedback(data.message || 'O QR nao ficou pronto. Tente de novo em alguns segundos.');
+    } catch (err) {
+      setFeedback((err as Error).message);
+    }
   }, []);
 
   useEffect(() => {
@@ -143,10 +163,13 @@ export function WhatsAppConnection() {
                   +{data.phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '$1 $2 $3-$4')}
                 </p>
               )}
-              {!connected && !qrCode && (
+              {!connected && !qrCode && !feedback && (
                 <p className="text-xs text-muted-foreground/50 mt-0.5">
                   Conecte um celular para receber entradas de estoque via WhatsApp.
                 </p>
+              )}
+              {!connected && feedback && (
+                <p className="text-xs text-destructive mt-0.5 max-w-sm">{feedback}</p>
               )}
             </div>
           </div>
