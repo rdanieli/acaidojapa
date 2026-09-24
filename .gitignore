@@ -5,3 +5,4 @@ node_modules
 postgres_data
 dashboard/.next
 dashboard/node_modules
+.claude/worktrees/
