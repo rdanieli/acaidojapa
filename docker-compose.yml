@@ -74,7 +74,7 @@ services:
 
   # Evolution API — WhatsApp integration
   evolution:
-    image: atendai/evolution-api:latest
+    image: evoapicloud/evolution-api:latest
     container_name: acaidojapa-evolution
     restart: unless-stopped
     depends_on:
