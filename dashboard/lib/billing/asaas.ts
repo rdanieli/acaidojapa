@@ -16,21 +16,46 @@ const BASE_URL = () =>
 
 const API_KEY = () => process.env.ASAAS_API_KEY || '';
 
-async function asaasRequest(method: string, path: string, body?: any) {
+type AsaasErrorBody = { errors?: { description: string }[] };
+
+function parseJsonOrNull(raw: string): unknown {
+  if (!raw.trim()) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function asaasRequest(method: string, path: string, body?: unknown): Promise<any> {
+  const apiKey = API_KEY();
+  if (!apiKey) {
+    throw new Error('Cobrança via cartão não está configurada neste ambiente (ASAAS_API_KEY ausente)');
+  }
+
   const res = await fetch(`${BASE_URL()}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      access_token: API_KEY(),
+      access_token: apiKey,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  const rawBody = await res.text();
+  const data = parseJsonOrNull(rawBody);
 
   if (!res.ok) {
-    const errorMsg = data?.errors?.map((e: any) => e.description).join(', ') || JSON.stringify(data);
+    const errorBody = data as AsaasErrorBody | null;
+    const errorMsg =
+      errorBody?.errors?.map((e) => e.description).join(', ') ||
+      (data ? JSON.stringify(data) : rawBody.trim() || res.statusText || 'resposta vazia');
     throw new Error(`Asaas API error (${res.status}): ${errorMsg}`);
+  }
+
+  if (data === null) {
+    throw new Error(`Asaas API error (${res.status}): resposta sem JSON válido`);
   }
 
   return data;
