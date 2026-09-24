@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements, tenants } from '@/lib/db/schema';
+import { inventoryEntries, inventoryItems, allowedSenders, products, stockMovements, tenants, tenantSettings } from '@/lib/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import {
   transcribeAudio,
@@ -15,11 +15,17 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const VERIFY_WORDS = ['verificar', 'verify', 'ativar'];
 
 /**
- * Resolve tenantId from Evolution instance name (e.g. 'tongo-burger-ze' → tenant with slug 'burger-ze').
- * Returns null if not found or if instanceName doesn't match the tongo-{slug} pattern.
+ * Resolve tenantId from the Evolution instance name. Checks the name saved in
+ * tenantSettings first (covers legacy names like 'acaidojapa') and falls back
+ * to the tongo-{slug} convention. Returns null when it cannot be resolved.
  */
 async function resolveTenantFromInstance(instanceName: string | null): Promise<number | null> {
   if (!instanceName) return null;
+
+  const [settings] = await db.select({ tenantId: tenantSettings.tenantId }).from(tenantSettings)
+    .where(eq(tenantSettings.evolutionInstanceName, instanceName)).limit(1);
+  if (settings) return settings.tenantId;
+
   const slug = instanceName.startsWith('tongo-') ? instanceName.slice(6) : null;
   if (!slug) return null;
   const [tenant] = await db.select({ id: tenants.id }).from(tenants)
@@ -89,6 +95,8 @@ async function handleVerification(
  * Also returns the tenantId.
  */
 async function lookupSender(phone: string, isLid: boolean, scopeTenantId?: number | null): Promise<{ replyPhone: string; senderName: string; tenantId: number } | null> {
+  if (!scopeTenantId) return null;
+
   if (isLid) {
     const conditions = [eq(allowedSenders.lid, phone)];
     if (scopeTenantId) conditions.push(eq(allowedSenders.tenantId, scopeTenantId));
@@ -130,10 +138,15 @@ export async function POST(request: NextRequest) {
     if (isFromMe(body) || isGroupMessage(body)) return NextResponse.json({ ok: true });
 
     // Resolve tenant from instanceName (query param or body)
+    const rawInstance = body?.instance;
     const instanceNameParam = request.nextUrl.searchParams.get('instanceName')
-      || body?.instance?.instanceName
+      || (typeof rawInstance === 'string' ? rawInstance : rawInstance?.instanceName)
       || null;
     const instanceTenantId = await resolveTenantFromInstance(instanceNameParam);
+    if (!instanceTenantId) {
+      console.warn('[Webhook] Instancia sem tenant resolvido, ignorando:', instanceNameParam);
+      return NextResponse.json({ ok: true });
+    }
 
     const phone = extractPhone(body);
     const fullRemoteJid = body?.data?.key?.remoteJid || '';

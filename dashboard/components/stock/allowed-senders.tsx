@@ -34,10 +34,15 @@ export function AllowedSenders() {
   const resend = useResendVerification();
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const handleAdd = () => {
     if (!newPhone.trim() || !newName.trim()) return;
-    addSender.mutate({ phone: newPhone.trim(), name: newName.trim() });
+    setFeedback(null);
+    addSender.mutate(
+      { phone: newPhone.trim(), name: newName.trim() },
+      { onError: (err: Error) => setFeedback(err.message) }
+    );
     setNewPhone('');
     setNewName('');
   };
@@ -98,9 +103,13 @@ export function AllowedSenders() {
             {addSender.isPending ? 'Enviando...' : 'Adicionar'}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground/40 mt-2">
-          Uma mensagem de verificação será enviada pelo WhatsApp. A pessoa precisa responder "VERIFICAR" para ativar.
-        </p>
+        {feedback ? (
+          <p className="text-xs text-destructive mt-2">{feedback}</p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground/40 mt-2">
+            Uma mensagem de verificação será enviada pelo WhatsApp. A pessoa precisa responder &ldquo;VERIFICAR&rdquo; para ativar.
+          </p>
+        )}
       </div>
 
       {/* Senders list */}

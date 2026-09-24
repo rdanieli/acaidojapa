@@ -77,8 +77,9 @@ export function useAddSender() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to add sender');
-      return res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Nao foi possivel autorizar esse numero');
+      return body;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
   });
