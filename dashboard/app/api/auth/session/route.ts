@@ -55,6 +55,7 @@ export async function GET() {
         name,
         allowedModules,
         passwordIsTemporary,
+        cardCaptureEnabled: !!process.env.ASAAS_API_KEY,
         tenant: tenant || null,
       },
     });
