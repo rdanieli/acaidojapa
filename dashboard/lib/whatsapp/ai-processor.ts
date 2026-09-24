@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk';
+import { GROQ_CHAT_MODEL, GROQ_TRANSCRIBE_MODEL } from './groq-models';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -78,7 +79,7 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 
   const transcription = await groq.audio.transcriptions.create({
     file,
-    model: 'whisper-large-v3-turbo',
+    model: GROQ_TRANSCRIBE_MODEL,
     language: 'pt',
   });
 
@@ -87,7 +88,7 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 
 export async function extractInventoryFromText(text: string, catalog: CatalogProduct[] = []): Promise<ExtractionResult> {
   const completion = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: GROQ_CHAT_MODEL,
     messages: [
       { role: 'system', content: buildPrompt(catalog) },
       { role: 'user', content: text },
@@ -103,7 +104,7 @@ export async function extractInventoryFromText(text: string, catalog: CatalogPro
 
 export async function extractInventoryFromImage(base64: string, mimeType: string, catalog: CatalogProduct[] = []): Promise<ExtractionResult> {
   const completion = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: GROQ_CHAT_MODEL,
     messages: [
       { role: 'system', content: buildPrompt(catalog) },
       {
