@@ -17,7 +17,7 @@ import { eq, and, ilike } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
 import { GROQ_CHAT_MODEL } from './groq-models';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, baseURL: process.env.GROQ_BASE_URL || undefined });
 
 // --- In-memory message history (per phone, 30min TTL) ---
 interface HistoryEntry {

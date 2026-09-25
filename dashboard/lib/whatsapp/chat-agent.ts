@@ -6,7 +6,7 @@ import { sendMessage } from './evolution';
 import { addBotResponseToHistory } from './admin-commands';
 import { GROQ_CHAT_MODEL } from './groq-models';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, baseURL: process.env.GROQ_BASE_URL || undefined });
 
 // --- Step 1: Query Planner ---
 
@@ -72,7 +72,7 @@ Regras:
 
 // --- Step 2: Execute Queries ---
 
-async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> {
+async function executeQueries(plan: QueryPlan, tenantId: number): Promise<Record<string, string>> {
   const since = new Date(Date.now() - plan.days * 24 * 60 * 60 * 1000);
   const sinceDate = since.toISOString().split('T')[0];
   const data: Record<string, string> = {};
@@ -93,8 +93,8 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
           .from(products)
           .where(
             plan.product_filter
-              ? and(eq(products.active, true), ilike(products.name, `%${plan.product_filter}%`))
-              : eq(products.active, true)
+              ? and(eq(products.tenantId, tenantId), eq(products.active, true), ilike(products.name, `%${plan.product_filter}%`))
+              : and(eq(products.tenantId, tenantId), eq(products.active, true))
           );
 
         const rows = await query;
@@ -128,7 +128,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
           })
           .from(stockAlerts)
           .innerJoin(products, eq(stockAlerts.productId, products.id))
-          .where(eq(stockAlerts.status, 'active'));
+          .where(and(eq(stockAlerts.tenantId, tenantId), eq(stockAlerts.status, 'active')));
 
         data.alerts =
           rows.length > 0
@@ -155,7 +155,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
             })
             .from(stockMovements)
             .innerJoin(products, eq(stockMovements.productId, products.id))
-            .where(and(gte(stockMovements.createdAt, since), ilike(products.name, `%${plan.product_filter}%`)))
+            .where(and(eq(stockMovements.tenantId, tenantId), gte(stockMovements.createdAt, since), ilike(products.name, `%${plan.product_filter}%`)))
             .orderBy(desc(stockMovements.createdAt))
             .limit(50);
         } else {
@@ -169,7 +169,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
             })
             .from(stockMovements)
             .innerJoin(products, eq(stockMovements.productId, products.id))
-            .where(gte(stockMovements.createdAt, since))
+            .where(and(eq(stockMovements.tenantId, tenantId), gte(stockMovements.createdAt, since)))
             .orderBy(desc(stockMovements.createdAt))
             .limit(50);
         }
@@ -197,7 +197,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
             total: sql<string>`coalesce(sum(${orders.total}::numeric), 0)::text`,
           })
           .from(orders)
-          .where(gte(orders.date, sinceDate))
+          .where(and(eq(orders.tenantId, tenantId), gte(orders.date, sinceDate)))
           .groupBy(orders.date)
           .orderBy(desc(orders.date));
 
@@ -222,7 +222,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
             })
             .from(orderItems)
             .innerJoin(orders, eq(orderItems.orderId, orders.id))
-            .where(and(gte(orders.date, sinceDate), ilike(orderItems.name, `%${plan.product_filter}%`)))
+            .where(and(eq(orders.tenantId, tenantId), gte(orders.date, sinceDate), ilike(orderItems.name, `%${plan.product_filter}%`)))
             .groupBy(orderItems.name)
             .orderBy(sql`sum(${orderItems.totalPrice}::numeric) desc`)
             .limit(30);
@@ -235,7 +235,7 @@ async function executeQueries(plan: QueryPlan): Promise<Record<string, string>> 
             })
             .from(orderItems)
             .innerJoin(orders, eq(orderItems.orderId, orders.id))
-            .where(gte(orders.date, sinceDate))
+            .where(and(eq(orders.tenantId, tenantId), gte(orders.date, sinceDate)))
             .groupBy(orderItems.name)
             .orderBy(sql`sum(${orderItems.totalPrice}::numeric) desc`)
             .limit(30);
@@ -296,14 +296,14 @@ REGRAS:
 
 // --- Main Handler ---
 
-export async function handleQuestion(phone: string, text: string, tenantId?: number): Promise<void> {
+export async function handleQuestion(phone: string, text: string, tenantId: number): Promise<void> {
   try {
     // Step 1: Plan which queries to run
     const plan = await planQueries(text);
     console.log('[ChatAgent] Plan:', JSON.stringify(plan));
 
     // Step 2: Execute only the needed queries
-    const data = await executeQueries(plan);
+    const data = await executeQueries(plan, tenantId);
 
     // Step 3: Generate natural response
     const response = await generateResponse(text, data, plan.days);
@@ -320,12 +320,12 @@ export async function handleQuestion(phone: string, text: string, tenantId?: num
   }
 }
 
-async function sendFallbackResponse(phone: string, tenantId?: number): Promise<void> {
+async function sendFallbackResponse(phone: string, tenantId: number): Promise<void> {
   try {
     const catalog = await db
       .select({ name: products.name, currentStock: products.currentStock, defaultUnit: products.defaultUnit })
       .from(products)
-      .where(eq(products.active, true));
+      .where(and(eq(products.tenantId, tenantId), eq(products.active, true)));
 
     const lines = ['*Resumo do estoque:*\n'];
     for (const p of catalog) {

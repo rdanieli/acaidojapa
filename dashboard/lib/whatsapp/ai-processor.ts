@@ -1,7 +1,7 @@
 import Groq from 'groq-sdk';
 import { GROQ_CHAT_MODEL, GROQ_TRANSCRIBE_MODEL } from './groq-models';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, baseURL: process.env.GROQ_BASE_URL || undefined });
 
 export interface ExtractedItem {
   product_name: string;
