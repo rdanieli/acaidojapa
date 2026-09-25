@@ -1,5 +1,6 @@
 const BR_MOBILE_WITH_NINE = /^55(\d{2})9(\d{8})$/;
 const BR_MOBILE_WITHOUT_NINE = /^55(\d{2})(\d{8})$/;
+const BR_DDD_AND_NUMBER = /^([1-9]\d)(9?\d{8})$/;
 
 export function phoneVariants(phone: string): string[] {
   const digits = phone.replace(/\D/g, '');
@@ -14,14 +15,17 @@ export function phoneVariants(phone: string): string[] {
   return [...variants];
 }
 
-const BR_LOCAL_LENGTHS = new Set([10, 11]);
+export function normalizeBrPhone(input: string): string | null {
+  const digits = input.replace(/\D/g, '').replace(/^0+/, '');
 
-export function normalizeBrazilianPhone(input: string): string {
-  const digits = input.replace(/\D/g, '');
-  if (digits.startsWith('55') && BR_LOCAL_LENGTHS.has(digits.length - 2)) return digits;
+  const semPais = digits.startsWith('55') ? digits.slice(2) : digits;
+  if (!BR_DDD_AND_NUMBER.test(semPais)) return null;
 
-  const withoutTrunkZero = digits.replace(/^0+/, '');
-  if (BR_LOCAL_LENGTHS.has(withoutTrunkZero.length)) return `55${withoutTrunkZero}`;
+  return `55${semPais}`;
+}
 
-  return digits;
+export function formatBrPhone(phone: string): string {
+  const match = phone.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  if (!match) return phone;
+  return `+55 ${match[1]} ${match[2]}-${match[3]}`;
 }

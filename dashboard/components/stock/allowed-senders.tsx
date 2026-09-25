@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { normalizeBrPhone, formatBrPhone } from '@/lib/whatsapp/phone';
 import { Plus, Trash2, Phone, Shield, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 
 function useResendVerification() {
@@ -21,7 +22,7 @@ function useResendVerification() {
         body: JSON.stringify({ id }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Não foi possível reenviar a verificação');
+      if (!res.ok) throw new Error(body.error || 'Nao foi possivel reenviar a verificacao');
       return body;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
@@ -37,12 +38,17 @@ export function AllowedSenders() {
   const [newName, setNewName] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  const telefoneNormalizado = normalizeBrPhone(newPhone);
+
   const handleAdd = () => {
-    if (!newPhone.trim() || !newName.trim()) return;
+    if (!telefoneNormalizado || !newName.trim()) return;
     setFeedback(null);
     addSender.mutate(
-      { phone: newPhone.trim(), name: newName.trim() },
-      { onError: (err: Error) => setFeedback(err.message) }
+      { phone: telefoneNormalizado, name: newName.trim() },
+      {
+        onSuccess: (data: { warning?: string }) => setFeedback(data?.warning ?? null),
+        onError: (err: Error) => setFeedback(err.message),
+      }
     );
     setNewPhone('');
     setNewName('');
@@ -74,14 +80,24 @@ export function AllowedSenders() {
         <div className="flex gap-3 items-end">
           <div className="flex-1 space-y-1">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
-              Telefone (com DDD)
+              Telefone com DDD
             </label>
             <Input
-              placeholder="47 99999-9999"
+              placeholder="47 99782 8183"
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
-              className="h-9 bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
+              className={cn(
+                'h-9 bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40',
+                newPhone.trim() && !telefoneNormalizado && 'border-destructive/60 focus:border-destructive/60'
+              )}
             />
+            {newPhone.trim() && (
+              <p className={cn('text-[10px]', telefoneNormalizado ? 'text-emerald-400' : 'text-destructive')}>
+                {telefoneNormalizado
+                  ? `Vai salvar como ${formatBrPhone(telefoneNormalizado)}`
+                  : 'Número inválido. Use DDD e número, por exemplo 47 99782 8183.'}
+              </p>
+            )}
           </div>
           <div className="flex-1 space-y-1">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
@@ -97,7 +113,7 @@ export function AllowedSenders() {
           </div>
           <Button
             onClick={handleAdd}
-            disabled={!newPhone.trim() || !newName.trim() || addSender.isPending}
+            disabled={!telefoneNormalizado || !newName.trim() || addSender.isPending}
             className="h-9 bg-acai hover:bg-acai/80 text-white"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
