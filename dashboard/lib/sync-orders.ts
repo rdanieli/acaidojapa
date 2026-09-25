@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { orders, orderItems } from '@/lib/db/schema';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { getCuponsForRange, cwGetOrdersHistory, cwGetOrder } from '@/lib/apis';
+import { loadIntegrationCredentials } from '@/lib/integration-credentials';
 import { normalizePdvCupom, normalizeCwOrder } from '@/lib/normalize';
 import { formatDateISO } from '@/lib/format';
 import type { UnifiedOrder } from '@/lib/types';
@@ -60,6 +61,7 @@ async function insertOrder(unified: UnifiedOrder, raw: any, date: string, tenant
  * Sync orders from external APIs into local DB for a single date.
  */
 export async function syncOrdersForDate(date: string, tenantId: number): Promise<SyncResult> {
+  const creds = await loadIntegrationCredentials(tenantId);
   const errors: string[] = [];
   let pdvFetched = 0;
   let cwFetched = 0;
@@ -68,7 +70,7 @@ export async function syncOrdersForDate(date: string, tenantId: number): Promise
 
   // --- PDV (fast -- single bulk API call) ---
   try {
-    const pdvCupons = await getCuponsForRange(date, date);
+    const pdvCupons = await getCuponsForRange(creds, date, date);
     if (Array.isArray(pdvCupons)) {
       pdvFetched = pdvCupons.length;
       for (const cupom of pdvCupons) {
@@ -83,7 +85,7 @@ export async function syncOrdersForDate(date: string, tenantId: number): Promise
 
   // --- CW (smart -- check which orders we already have) ---
   try {
-    const historyResult = await cwGetOrdersHistory(date, date);
+    const historyResult = await cwGetOrdersHistory(creds, date, date);
     const historyOrders = historyResult?.orders || [];
     cwFetched = historyOrders.length;
 
@@ -105,7 +107,7 @@ export async function syncOrdersForDate(date: string, tenantId: number): Promise
         }
 
         try {
-          const detail = await cwGetOrder(summary.id);
+          const detail = await cwGetOrder(creds, summary.id);
           const unified = normalizeCwOrder(detail);
           const wasInserted = await insertOrder(unified, detail, date, tenantId);
           if (wasInserted) imported++; else skipped++;
@@ -129,6 +131,13 @@ export async function syncOrdersForRange(start: string, end: string, tenantId: n
   totalSkipped: number;
   days: SyncResult[];
 }> {
+  const creds = await loadIntegrationCredentials(tenantId);
+  if (!creds.pdv && !creds.cardapio) {
+    throw new Error(
+      'Este cliente não tem integração de vendas configurada. Configure PDV ou Cardápio Web em Integrações antes de sincronizar.'
+    );
+  }
+
   const results: SyncResult[] = [];
   let totalImported = 0;
   let totalSkipped = 0;
