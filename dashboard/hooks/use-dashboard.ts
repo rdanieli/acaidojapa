@@ -78,10 +78,10 @@ export function useAddSender() {
         body: JSON.stringify(data),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Nao foi possivel autorizar esse numero');
+      if (!res.ok) throw new Error(body.error || 'Não foi possível autorizar esse número');
       return body;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
   });
 }
 

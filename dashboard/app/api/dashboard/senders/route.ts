@@ -4,6 +4,7 @@ import { allowedSenders } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
 import { normalizeBrPhone } from '@/lib/whatsapp/phone';
+import { describeSendFailure } from '@/lib/whatsapp/send-failure';
 import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET() {
@@ -50,13 +51,8 @@ export async function POST(request: NextRequest) {
       );
     } catch (err) {
       console.error('[Senders API] Failed to send verification:', err);
-      const naoExiste = String(err).includes('"exists":false');
-      return NextResponse.json({
-        sender,
-        warning: naoExiste
-          ? `O numero ${normalized} nao existe no WhatsApp. Confira DDD e numero.`
-          : 'Numero salvo, mas a mensagem de verificacao nao saiu. Confira se o WhatsApp esta conectado na aba Conexao.',
-      });
+      const failure = describeSendFailure(err);
+      return NextResponse.json({ sender, error: failure.message }, { status: failure.status });
     }
 
     return NextResponse.json({ sender });
@@ -87,12 +83,8 @@ export async function PUT(request: NextRequest) {
       );
     } catch (err) {
       console.error('[Senders API] Failed to resend verification:', err);
-      const naoExiste = String(err).includes('"exists":false');
-      return NextResponse.json({
-        error: naoExiste
-          ? `O numero ${sender.phone} nao existe no WhatsApp. Apague e cadastre de novo com DDD e codigo do pais.`
-          : 'Nao foi possivel enviar a verificacao. Confira se o WhatsApp esta conectado na aba Conexao.',
-      }, { status: 502 });
+      const failure = describeSendFailure(err);
+      return NextResponse.json({ error: failure.message }, { status: failure.status });
     }
 
     return NextResponse.json({ ok: true });
