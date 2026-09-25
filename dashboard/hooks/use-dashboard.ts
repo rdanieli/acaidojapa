@@ -193,6 +193,28 @@ export function useConfirmEntry() {
   });
 }
 
+export function useCancelEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch('/api/dashboard/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'cancel' }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Nao foi possivel cancelar a entrada');
+      return body as { itensEstornados: number; produtosRemovidos: number };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-entries'] });
+      qc.invalidateQueries({ queryKey: ['products-catalog'] });
+      qc.invalidateQueries({ queryKey: ['stock-movements'] });
+      qc.invalidateQueries({ queryKey: ['stock-summary'] });
+    },
+  });
+}
+
 export function useRejectEntry() {
   const qc = useQueryClient();
   return useMutation({

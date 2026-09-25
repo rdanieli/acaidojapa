@@ -12,9 +12,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useConfirmEntry, useRejectEntry } from '@/hooks/use-dashboard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useConfirmEntry, useRejectEntry, useCancelEntry } from '@/hooks/use-dashboard';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight, MessageSquare, Camera, Mic, Check, X, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare, Camera, Mic, Check, X, Loader2, Undo2 } from 'lucide-react';
 
 interface InventoryItem {
   id: number;
@@ -42,6 +43,10 @@ interface InventoryEntriesTableProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  canceled: {
+    label: 'Cancelado',
+    className: 'bg-muted-foreground/15 text-muted-foreground border-muted-foreground/20',
+  },
   pending: {
     label: 'Pendente',
     className: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
@@ -81,6 +86,9 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const confirmEntry = useConfirmEntry();
   const rejectEntry = useRejectEntry();
+  const cancelEntry = useCancelEntry();
+  const [entradaParaCancelar, setEntradaParaCancelar] = useState<{ id: number; itens: number } | null>(null);
+  const [erroCancelamento, setErroCancelamento] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -186,6 +194,21 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
                     </Badge>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
+                    {entry.status === 'confirmed' && (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="h-6 px-2 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setErroCancelamento(null);
+                          setEntradaParaCancelar({ id: entry.id, itens: entry.items.length });
+                        }}
+                        disabled={cancelEntry.isPending}
+                      >
+                        <Undo2 className="h-3.5 w-3.5 mr-1" />
+                        Cancelar
+                      </Button>
+                    )}
                     {isPending && (
                       <div className="flex items-center gap-1">
                         <Button
@@ -280,6 +303,49 @@ export function InventoryEntriesTable({ entries, loading }: InventoryEntriesTabl
       })()}
 
       <p className="text-[11px] text-muted-foreground/40">{entries.length} entradas</p>
+
+      <Dialog open={!!entradaParaCancelar} onOpenChange={(open) => !open && setEntradaParaCancelar(null)}>
+        <DialogContent className="bg-background border-border">
+          <DialogHeader>
+            <DialogTitle>Cancelar a entrada #{entradaParaCancelar?.id}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {erroCancelamento ? (
+              <p className="text-sm text-destructive">{erroCancelamento}</p>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  O estoque dos {entradaParaCancelar?.itens} itens volta ao que era antes e as movimentações
+                  geradas por ela são apagadas.
+                </p>
+                <p className="text-xs text-muted-foreground/60">
+                  Produto que só existia por causa desta entrada, e que ficou sem nenhuma movimentação, sai do
+                  catálogo junto. Essa ação não tem volta.
+                </p>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEntradaParaCancelar(null)}>Voltar</Button>
+            {!erroCancelamento && (
+              <Button
+                className="bg-destructive hover:bg-destructive/80 text-white"
+                disabled={cancelEntry.isPending}
+                onClick={() =>
+                  entradaParaCancelar &&
+                  cancelEntry.mutate(entradaParaCancelar.id, {
+                    onSuccess: () => setEntradaParaCancelar(null),
+                    onError: (err: Error) => setErroCancelamento(err.message),
+                  })
+                }
+              >
+                <Undo2 className="h-3.5 w-3.5 mr-1" />
+                {cancelEntry.isPending ? 'Cancelando...' : 'Cancelar entrada'}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
