@@ -254,6 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Resolve product IDs -- create new products for unmatched items
+    const produtosCriadosAgora: number[] = [];
     for (const item of result.items) {
       if (item.matched_product_id) {
         // Verify the matched ID exists for this tenant
@@ -268,6 +269,7 @@ export async function POST(request: NextRequest) {
           .onConflictDoUpdate({ target: [products.tenantId, products.name], set: { active: true } })
           .returning();
         item.matched_product_id = newProduct.id;
+        produtosCriadosAgora.push(newProduct.id);
         console.log(`[Webhook] New product created: "${item.product_name}" (ID ${newProduct.id})`);
       }
     }
@@ -351,6 +353,12 @@ export async function POST(request: NextRequest) {
       .insert(inventoryEntries)
       .values({ tenantId, source, rawText: result.raw_text || null, senderPhone: replyTo, status: 'pending' })
       .returning();
+
+    if (produtosCriadosAgora.length > 0) {
+      await db.update(products)
+        .set({ createdFromEntryId: entry.id })
+        .where(and(eq(products.tenantId, tenantId), inArray(products.id, produtosCriadosAgora)));
+    }
 
     await db.insert(inventoryItems).values(
       result.items.map((item) => ({

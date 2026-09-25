@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
         const [produto] = await db.select().from(products)
           .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
         if (!produto) continue;
-        if (produto.createdAt < entry.createdAt) continue;
+        if (produto.createdFromEntryId !== entry.id) continue;
 
         const [{ total }] = await db
           .select({ total: sql<number>`count(*)::int` })

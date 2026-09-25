@@ -32,8 +32,9 @@ async function seed(slug) {
     [tenant.id]
   );
   const { rows: [novo] } = await pool.query(
-    `insert into products (tenant_id, name, default_unit, current_stock) values ($1, 'Plutonita', 'un', 0) returning id`,
-    [tenant.id]
+    `insert into products (tenant_id, name, default_unit, current_stock, created_from_entry_id)
+     values ($1, 'Plutonita', 'un', 0, $2) returning id`,
+    [tenant.id, entry.id]
   );
   await pool.query(
     `insert into inventory_items (tenant_id, entry_id, product_id, product_name, quantity, unit) values
