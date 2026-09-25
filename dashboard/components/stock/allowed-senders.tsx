@@ -20,8 +20,9 @@ function useResendVerification() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Nao foi possivel reenviar a verificacao');
+      return body;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
   });
@@ -41,7 +42,10 @@ export function AllowedSenders() {
     setFeedback(null);
     addSender.mutate(
       { phone: newPhone.trim(), name: newName.trim() },
-      { onError: (err: Error) => setFeedback(err.message) }
+      {
+        onSuccess: (data: { warning?: string }) => setFeedback(data?.warning ?? null),
+        onError: (err: Error) => setFeedback(err.message),
+      }
     );
     setNewPhone('');
     setNewName('');
@@ -154,7 +158,10 @@ export function AllowedSenders() {
                             Aguardando
                           </Badge>
                           <button
-                            onClick={() => resend.mutate(s.id)}
+                            onClick={() => {
+                              setFeedback(null);
+                              resend.mutate(s.id, { onError: (err: Error) => setFeedback(err.message) });
+                            }}
                             disabled={resend.isPending}
                             className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                             title="Reenviar verificação"
