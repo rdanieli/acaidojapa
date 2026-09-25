@@ -82,6 +82,12 @@ async function main() {
   const curto = await addSender(token, '123', 'Invalido');
   check('numero curto demais e recusado com mensagem', curto.status === 400 && /Numero invalido/.test(curto.body?.error || ''), `status ${curto.status} ${curto.body?.error || ''}`);
 
+  const comZero = await addSender(token, `047 99782 ${stamp.slice(-4)}`, 'Zero na frente');
+  check('zero na frente do DDD e corrigido', comZero.body?.sender?.phone === `554799782${stamp.slice(-4)}`, comZero.body?.sender?.phone || comZero.body?.error);
+
+  const estrangeiro = await addSender(token, '+1 415 555 2671', 'Gringo');
+  check('numero de fora do Brasil e recusado', estrangeiro.status === 400, `status ${estrangeiro.status} ${estrangeiro.body?.error || ''}`);
+
   const { rows } = await pool.query('select phone from allowed_senders where tenant_id = $1 order by id', [tenantId]);
   check('nada invalido foi gravado', rows.every(r => r.phone.startsWith('55')), JSON.stringify(rows.map(r => r.phone)));
 
