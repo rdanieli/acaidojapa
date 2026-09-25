@@ -82,7 +82,7 @@ async function main() {
   const { rows: [t2] } = await pool.query('select onboarding_completed from tenants where id = $1', [segundo.tenantId]);
   check('os dois ficam com onboarding concluido', t1.onboarding_completed && t2.onboarding_completed, `${t1.onboarding_completed} e ${t2.onboarding_completed}`);
 
-  const telefone = `5547${String(stamp).slice(-9)}`;
+  const telefone = `55479${String(stamp).slice(-8)}`;
   const s1 = await addSender(primeiro.token, telefone);
   const s2 = await addSender(segundo.token, telefone);
   check('mesmo telefone autorizado em dois clientes', s1 === 200 && s2 === 200, `status ${s1} e ${s2}`);
