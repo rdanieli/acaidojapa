@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { allowedSenders } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
+import { normalizeBrPhone } from '@/lib/whatsapp/phone';
 import { getTenantScope } from '@/lib/db/tenant';
 
 export async function GET() {
@@ -23,7 +24,13 @@ export async function POST(request: NextRequest) {
     if (!phone || !name) {
       return NextResponse.json({ error: 'phone and name are required' }, { status: 400 });
     }
-    const normalized = phone.replace(/[\s\-+()]/g, '');
+    const normalized = normalizeBrPhone(phone);
+    if (!normalized) {
+      return NextResponse.json(
+        { error: 'Numero invalido. Use DDD e numero, por exemplo 47 99782 8183.' },
+        { status: 400 }
+      );
+    }
 
     const [sender] = await db
       .insert(allowedSenders)
@@ -43,7 +50,13 @@ export async function POST(request: NextRequest) {
       );
     } catch (err) {
       console.error('[Senders API] Failed to send verification:', err);
-      return NextResponse.json({ sender, warning: 'Sender created but verification message failed to send' });
+      const naoExiste = String(err).includes('"exists":false');
+      return NextResponse.json({
+        sender,
+        warning: naoExiste
+          ? `O numero ${normalized} nao existe no WhatsApp. Confira DDD e numero.`
+          : 'Numero salvo, mas a mensagem de verificacao nao saiu. Confira se o WhatsApp esta conectado na aba Conexao.',
+      });
     }
 
     return NextResponse.json({ sender });
@@ -66,11 +79,21 @@ export async function PUT(request: NextRequest) {
     // Reset verification
     await db.update(allowedSenders).set({ verificationStatus: 'pending', lid: null }).where(and(eq(allowedSenders.id, sender.id), eq(allowedSenders.tenantId, tenantId)));
 
-    await sendMessage(
-      sender.phone,
-      `Olá ${sender.name}! Você foi autorizado a registrar entradas de estoque no sistema Japa Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
-      tenantId
-    );
+    try {
+      await sendMessage(
+        sender.phone,
+        `Olá ${sender.name}! Você foi autorizado a registrar entradas de estoque no sistema Japa Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
+        tenantId
+      );
+    } catch (err) {
+      console.error('[Senders API] Failed to resend verification:', err);
+      const naoExiste = String(err).includes('"exists":false');
+      return NextResponse.json({
+        error: naoExiste
+          ? `O numero ${sender.phone} nao existe no WhatsApp. Apague e cadastre de novo com DDD e codigo do pais.`
+          : 'Nao foi possivel enviar a verificacao. Confira se o WhatsApp esta conectado na aba Conexao.',
+      }, { status: 502 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
