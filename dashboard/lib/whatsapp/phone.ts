@@ -13,3 +13,15 @@ export function phoneVariants(phone: string): string[] {
 
   return [...variants];
 }
+
+const BR_LOCAL_LENGTHS = new Set([10, 11]);
+
+export function normalizeBrazilianPhone(input: string): string {
+  const digits = input.replace(/\D/g, '');
+  if (digits.startsWith('55') && BR_LOCAL_LENGTHS.has(digits.length - 2)) return digits;
+
+  const withoutTrunkZero = digits.replace(/^0+/, '');
+  if (BR_LOCAL_LENGTHS.has(withoutTrunkZero.length)) return `55${withoutTrunkZero}`;
+
+  return digits;
+}

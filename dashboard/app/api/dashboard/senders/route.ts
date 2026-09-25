@@ -3,7 +3,13 @@ import { db } from '@/lib/db';
 import { allowedSenders } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendMessage } from '@/lib/whatsapp/evolution';
+import { normalizeBrazilianPhone } from '@/lib/whatsapp/phone';
+import { describeSendFailure } from '@/lib/whatsapp/send-failure';
 import { getTenantScope } from '@/lib/db/tenant';
+
+function verificationText(name: string): string {
+  return `Olá ${name}! Você foi autorizado a registrar entradas de estoque no sistema Japa Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`;
+}
 
 export async function GET() {
   try {
@@ -23,7 +29,10 @@ export async function POST(request: NextRequest) {
     if (!phone || !name) {
       return NextResponse.json({ error: 'phone and name are required' }, { status: 400 });
     }
-    const normalized = phone.replace(/[\s\-+()]/g, '');
+    const normalized = normalizeBrazilianPhone(String(phone));
+    if (normalized.length < 12) {
+      return NextResponse.json({ error: 'Telefone inválido. Informe DDD e número, ex.: 47 99999-9999.' }, { status: 400 });
+    }
 
     const [sender] = await db
       .insert(allowedSenders)
@@ -34,16 +43,12 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Send verification message
     try {
-      await sendMessage(
-        normalized,
-        `Olá ${name}! Você foi autorizado a registrar entradas de estoque no sistema Japa Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
-        tenantId
-      );
+      await sendMessage(normalized, verificationText(name), tenantId);
     } catch (err) {
       console.error('[Senders API] Failed to send verification:', err);
-      return NextResponse.json({ sender, warning: 'Sender created but verification message failed to send' });
+      const failure = describeSendFailure(err);
+      return NextResponse.json({ sender, error: failure.message }, { status: failure.status });
     }
 
     return NextResponse.json({ sender });
@@ -66,11 +71,13 @@ export async function PUT(request: NextRequest) {
     // Reset verification
     await db.update(allowedSenders).set({ verificationStatus: 'pending', lid: null }).where(and(eq(allowedSenders.id, sender.id), eq(allowedSenders.tenantId, tenantId)));
 
-    await sendMessage(
-      sender.phone,
-      `Olá ${sender.name}! Você foi autorizado a registrar entradas de estoque no sistema Japa Gestão.\n\nResponda *VERIFICAR* para ativar seu acesso.`,
-      tenantId
-    );
+    try {
+      await sendMessage(sender.phone, verificationText(sender.name), tenantId);
+    } catch (err) {
+      console.error('[Senders API] Failed to resend verification:', err);
+      const failure = describeSendFailure(err);
+      return NextResponse.json({ error: failure.message }, { status: failure.status });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -10,6 +10,8 @@ import {
 import { downloadMedia, sendMessage } from '@/lib/whatsapp/evolution';
 import { handleConfirmation } from '@/lib/whatsapp/confirmation';
 import { phoneVariants } from '@/lib/whatsapp/phone';
+import { ownerSelfMessagePhone } from '@/lib/whatsapp/self-chat';
+import { wasSentByUs } from '@/lib/whatsapp/sent-messages';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const VERIFY_WORDS = ['verificar', 'verify', 'ativar'];
@@ -135,7 +137,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     if (body.event !== 'messages.upsert') return NextResponse.json({ ok: true });
-    if (isFromMe(body) || isGroupMessage(body)) return NextResponse.json({ ok: true });
+    if (isGroupMessage(body)) return NextResponse.json({ ok: true });
+    if (isFromMe(body) && wasSentByUs(body?.data?.key?.id)) return NextResponse.json({ ok: true });
+    const ownerSelfPhone = isFromMe(body) ? ownerSelfMessagePhone(body) : null;
+    if (isFromMe(body) && !ownerSelfPhone) return NextResponse.json({ ok: true });
 
     // Resolve tenant from instanceName (query param or body)
     const rawInstance = body?.instance;
@@ -148,13 +153,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const phone = extractPhone(body);
+    const phone = ownerSelfPhone ?? extractPhone(body);
     const fullRemoteJid = body?.data?.key?.remoteJid || '';
-    const isLid = fullRemoteJid.includes('@lid');
+    const isLid = !ownerSelfPhone && fullRemoteJid.includes('@lid');
     const pushName = body?.data?.pushName || '';
     const textContent = body.data?.message?.conversation || body.data?.message?.extendedTextMessage?.text || '';
 
-    console.log('[Webhook] Phone:', phone, 'isLid:', isLid, 'pushName:', pushName);
+    console.log('[Webhook] Phone:', phone, 'isLid:', isLid, 'pushName:', pushName, 'selfChat:', !!ownerSelfPhone);
 
     // 1. Check for verification reply (before sender lookup, since pending senders aren't verified yet)
     if (textContent) {

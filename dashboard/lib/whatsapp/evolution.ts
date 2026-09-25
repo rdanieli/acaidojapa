@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { tenantSettings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { rememberSentMessage } from './sent-messages';
 
 // Fallback env vars (used when no tenant-specific settings exist)
 const ENV_BASE_URL = process.env.EVOLUTION_API_URL || '';
@@ -115,6 +116,9 @@ export async function sendMessage(remoteJid: string, text: string, tenantId?: nu
     const body = await res.text().catch(() => '');
     throw new Error(`Failed to send message: ${res.status} ${body}`);
   }
+
+  const sent = await res.json().catch(() => null);
+  rememberSentMessage(sent?.key?.id);
 }
 
 /**

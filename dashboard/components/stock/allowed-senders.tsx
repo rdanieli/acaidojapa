@@ -20,8 +20,9 @@ function useResendVerification() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Não foi possível reenviar a verificação');
+      return body;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['allowed-senders'] }),
   });
@@ -73,10 +74,10 @@ export function AllowedSenders() {
         <div className="flex gap-3 items-end">
           <div className="flex-1 space-y-1">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/50">
-              Telefone (com DDD e código do país)
+              Telefone (com DDD)
             </label>
             <Input
-              placeholder="5583993698623"
+              placeholder="47 99999-9999"
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
               className="h-9 bg-muted/50 border-border focus:border-acai/40 focus:ring-acai/20 placeholder:text-muted-foreground/40"
@@ -154,7 +155,10 @@ export function AllowedSenders() {
                             Aguardando
                           </Badge>
                           <button
-                            onClick={() => resend.mutate(s.id)}
+                            onClick={() => {
+                              setFeedback(null);
+                              resend.mutate(s.id, { onError: (err: Error) => setFeedback(err.message) });
+                            }}
                             disabled={resend.isPending}
                             className="p-1 rounded-md hover:bg-muted/80 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                             title="Reenviar verificação"
