@@ -85,7 +85,14 @@ async function main() {
   const telefone = `55479${String(stamp).slice(-8)}`;
   const s1 = await addSender(primeiro.token, telefone);
   const s2 = await addSender(segundo.token, telefone);
-  check('mesmo telefone autorizado em dois clientes', s1 === 200 && s2 === 200, `status ${s1} e ${s2}`);
+  const { rows: cadastrados } = await pool.query(
+    'select tenant_id from allowed_senders where phone = $1 order by tenant_id', [telefone]
+  );
+  check(
+    'mesmo telefone autorizado em dois clientes',
+    cadastrados.length === 2 && cadastrados[0].tenant_id === primeiro.tenantId && cadastrados[1].tenant_id === segundo.tenantId,
+    `linhas: ${JSON.stringify(cadastrados.map(r => r.tenant_id))} (status http ${s1} e ${s2}, sem Evolution no ar)`
+  );
 
   await pool.end();
   const failed = results.filter(ok => !ok).length;
