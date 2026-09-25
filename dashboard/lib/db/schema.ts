@@ -77,6 +77,7 @@ export const products = pgTable('products', {
   currentStock: numeric('current_stock', { precision: 10, scale: 3 }).notNull().default('0'),
   costPerUnit: numeric('cost_per_unit', { precision: 10, scale: 2 }), // cost per default unit
   barcode: text('barcode'), // EAN-13 or custom barcode
+  createdFromEntryId: integer('created_from_entry_id'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
